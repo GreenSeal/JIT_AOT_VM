@@ -10,7 +10,6 @@
 #include "ir_graph.h"
 #include "operands.h"
 
-// Demonstrate some basic assertions.
 TEST(ir_architecture, operands) {
     OperandBase *reg = new IReg(IReg::reg_t::v, 0, prim_type::u32);
     OperandBase *label = new Label("factorial");
@@ -63,7 +62,35 @@ TEST(ir_architecture, instructions) {
 }
 
 TEST(ir_architecture, basic_block) {
+    auto empty_bb = new BasicBlock();
 
+    auto bb_pushback = new BasicBlock();
+    bb_pushback->SetBBName("loop");
+    auto cmp_inst = new BinaryInstr(new IReg(IReg::reg_t::v, 1, prim_type::u64),
+                                    new IReg(IReg::reg_t::v, 2, prim_type::u64),
+                                    inst_t::cmp_u64);
+    auto ja_inst = new UnaryInstr(new Label("done"), inst_t::ja);
+    auto mul_inst = new TernaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64),
+                                              new IReg(IReg::reg_t::v, 0, prim_type::u64),
+                                              new IReg(IReg::reg_t::v, 1, prim_type::u64),
+                                              inst_t::mul_u64);
+    auto jmp_inst = new UnaryInstr(new Label("loop"), inst_t::jmp);
+
+    bb_pushback->AddInstBack(cmp_inst);
+    bb_pushback->AddInstBack(ja_inst);
+    bb_pushback->AddInstBack(mul_inst);
+    bb_pushback->AddInstBack(jmp_inst);
+
+    cmp_inst->SetNext(ja_inst);
+    ja_inst->SetPrev(cmp_inst);
+    ja_inst->SetNext(mul_inst);
+    mul_inst->SetPrev(ja_inst);
+    mul_inst->SetNext(jmp_inst);
+    jmp_inst->SetPrev(mul_inst);
+
+    auto bb = new BasicBlock(nullptr, "loop", cmp_inst);
+
+    EXPECT_EQ()
 }
 
 

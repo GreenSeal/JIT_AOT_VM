@@ -48,6 +48,34 @@ public:
         }
     }
 
+    const InstructionBase *GetFirstInst() const {
+        return first_inst_;
+    }
+
+    void SetFirstInst(InstructionBase *first_inst) {
+        first_inst_ = first_inst->clone();
+    }
+
+    const InstructionBase *GetLastInst() const {
+        return last_inst_;
+    }
+
+    void SetLastInst(InstructionBase *last_inst) {
+        last_inst_ = last_inst->clone();
+    }
+
+    std::string GetBBLabel() const {
+        return name_;
+    }
+
+    void SetBBName(const std::string &name) {
+        name_ = name;
+    }
+
+    IRGraphStorage *GetIRGraph() const {
+        return graph_;
+    }
+
     /*ideas: Insertion in any place of bb
              Instruction removing
              */
