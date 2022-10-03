@@ -74,7 +74,7 @@ public:
 
     virtual ~BinaryInstr() {}
 
-    virtual BinaryInstr *clone() {
+    virtual BinaryInstr *clone() const override {
         return new BinaryInstr(*this);
     }
 

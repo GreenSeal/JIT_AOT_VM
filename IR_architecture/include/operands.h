@@ -97,7 +97,7 @@ class UInt32Const final : public OperandBase {
 public:
     UInt32Const(uint32_t value) : OperandBase(opnd_t::imm), value_(value) {}
 
-    virtual UInt32Const *clone() {
+    virtual UInt32Const *clone() const override{
         return new UInt32Const(*this);
     }
 

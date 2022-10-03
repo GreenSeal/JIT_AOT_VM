@@ -9,6 +9,7 @@ class IRGraphStorage;
 
 class BasicBlock : public ilist_graph_node<BasicBlock> {
 public:
+
     BasicBlock(IRGraphStorage *graph = nullptr, const std::string &name = "", const InstructionBase *start_inst = nullptr) :
                graph_(graph), name_(name) {
         if(start_inst == nullptr) {
@@ -16,7 +17,7 @@ public:
             last_inst_ = nullptr;
             return;
         } 
-        
+        InstructionBase *first_inst = nullptr;
         InstructionBase *prev_inst = nullptr;
         while(start_inst != nullptr) {
             InstructionBase *new_instr = start_inst->clone();
@@ -29,6 +30,60 @@ public:
         }
         prev_inst->SetNext(nullptr);
         last_inst_ = prev_inst;
+    }
+
+    template <typename elt>
+    class bb_iterator : std::iterator<std::bidirectional_iterator_tag,
+            elt, std::ptrdiff_t, elt *, elt &> {
+
+        elt *cur_pos;
+
+    public:
+        explicit bb_iterator(elt *new_pos = nullptr) {
+            cur_pos = new_pos;
+        }
+
+        bb_iterator &operator++() {
+            cur_pos = cur_pos->GetNext();
+            return *this;
+        }
+
+        bb_iterator operator++(int) {
+            auto old_pos = *this;
+            cur_pos = cur_pos->GetNext();
+            return old_pos;
+        }
+
+        bool operator==(bb_iterator other) const {
+            return cur_pos == other.cur_pos;
+        }
+
+        bool operator!=(bb_iterator other) const {
+            return cur_pos != other.cur_pos;
+        }
+
+        elt *operator*() const {
+            return cur_pos;
+        }
+    };
+
+    using iterator = bb_iterator<InstructionBase>;
+    using const_iterator = bb_iterator<const InstructionBase>;
+
+    iterator begin() {
+        return iterator(first_inst_);
+    }
+
+    const_iterator begin() const {
+        return const_iterator(first_inst_);
+    }
+
+    iterator end() {
+        return iterator();
+    }
+
+    const_iterator end() const {
+        return const_iterator();
     }
 
     void AddInstBack(const InstructionBase *inst) {
@@ -64,7 +119,7 @@ public:
         last_inst_ = last_inst->clone();
     }
 
-    std::string GetBBLabel() const {
+    std::string GetBBName() const {
         return name_;
     }
 

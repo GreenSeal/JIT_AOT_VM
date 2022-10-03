@@ -11,10 +11,6 @@
 template <typename Elt>
 class ilist_bidirectional_node {
 public:
-    class iterator : std::iterator<std::bidirectional_iterator_tag,
-                                    Elt, size_t, Elt *, Elt &> {
-
-    };
 
     Elt *GetPrev() const {
         return prev_;
