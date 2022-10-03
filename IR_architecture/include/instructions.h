@@ -16,11 +16,14 @@ enum class class_t {base, unary, binary, ternary};
 class InstructionBase : public ilist_bidirectional_node<InstructionBase> {
 public:
     InstructionBase(class_t class_type, inst_t type) : class_type_(class_type), type_(type) {}
-    InstructionBase(const InstructionBase &rhs) = default;
+    InstructionBase(const InstructionBase &rhs) : class_type_(rhs.class_type_), type_(rhs.type_) {
+        SetNext(nullptr);
+        SetPrev(nullptr);
+    }
 
     virtual ~InstructionBase() {}
 
-     virtual InstructionBase *clone() const {
+    virtual InstructionBase *clone() const {
         return new InstructionBase(*this);
     }
 

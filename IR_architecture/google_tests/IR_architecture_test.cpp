@@ -116,6 +116,7 @@ TEST(ir_architecture, basic_block) {
                                               inst_t::mul_u64);
     auto jmp_inst = new UnaryInstr(new Label("loop"), inst_t::jmp);
 
+// =============== Testing forward iteration of bb, created through AddInstBack ========================
     auto bb_pushback = new BasicBlock();
     bb_pushback->SetBBName("loop");
 
@@ -150,7 +151,9 @@ TEST(ir_architecture, basic_block) {
 
     ++bb_pb_it;
     EXPECT_EQ(bb_pb_it, bb_pushback->end());
+// =====================================================================================================
 
+// =============== Testing forward iteration of bb, created through instruction chain ==================
     cmp_inst->SetNext(ja_inst);
     ja_inst->SetPrev(cmp_inst);
     ja_inst->SetNext(mul_inst);
@@ -161,30 +164,67 @@ TEST(ir_architecture, basic_block) {
     auto bb = new BasicBlock(nullptr, "loop", cmp_inst);
 
     auto bb_it = bb->begin();
-    EXPECT_EQ(*bb_it, nullptr);
-//    EXPECT_EQ(dynamic_cast<BinaryInstr *>(*bb_it)->GetType(), inst_t::cmp_u64);
-//    EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<BinaryInstr *>(*bb_it)->GetOpnd(0))->GetRegIdx(),
-//              1);
-//    EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<BinaryInstr *>(*bb_it)->GetOpnd(1))->GetRegIdx(),
-//              2);
-//
-//    ++bb_it;
-//    EXPECT_EQ(dynamic_cast<UnaryInstr *>(*bb_it)->GetType(), inst_t::ja);
-//    EXPECT_EQ(dynamic_cast<const Label *>(dynamic_cast<UnaryInstr *>(*bb_it)->GetOpnd(0))->GetLabelName(),
-//              "done");
-//
-//    ++bb_it;
-//    EXPECT_EQ(dynamic_cast<TernaryInstr *>(*bb_it)->GetType(), inst_t::mul_u64);
-//    EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<TernaryInstr *>(*bb_it)->GetOpnd(0))->GetRegIdx(), 0);
-//    EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<TernaryInstr *>(*bb_it)->GetOpnd(1))->GetRegIdx(), 0);
-//    EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<TernaryInstr *>(*bb_it)->GetOpnd(2))->GetRegIdx(), 1);
-//
-//    ++bb_it;
-//    EXPECT_EQ(dynamic_cast<UnaryInstr *>(*bb_it)->GetType(), inst_t::jmp);
-//    EXPECT_EQ(dynamic_cast<const Label *>(dynamic_cast<UnaryInstr *>(*bb_it)->GetOpnd(0))->GetLabelName(), "loop");
-//
-//    ++bb_it;
-//    EXPECT_EQ(bb_it, bb->end());
+    EXPECT_EQ(dynamic_cast<BinaryInstr *>(*bb_it)->GetType(), inst_t::cmp_u64);
+    EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<BinaryInstr *>(*bb_it)->GetOpnd(0))->GetRegIdx(),
+              1);
+    EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<BinaryInstr *>(*bb_it)->GetOpnd(1))->GetRegIdx(),
+              2);
+
+    ++bb_it;
+    EXPECT_EQ(dynamic_cast<UnaryInstr *>(*bb_it)->GetType(), inst_t::ja);
+    EXPECT_EQ(dynamic_cast<const Label *>(dynamic_cast<UnaryInstr *>(*bb_it)->GetOpnd(0))->GetLabelName(),
+              "done");
+
+    ++bb_it;
+    EXPECT_EQ(dynamic_cast<TernaryInstr *>(*bb_it)->GetType(), inst_t::mul_u64);
+    EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<TernaryInstr *>(*bb_it)->GetOpnd(0))->GetRegIdx(), 0);
+    EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<TernaryInstr *>(*bb_it)->GetOpnd(1))->GetRegIdx(), 0);
+    EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<TernaryInstr *>(*bb_it)->GetOpnd(2))->GetRegIdx(), 1);
+
+    ++bb_it;
+    EXPECT_EQ(dynamic_cast<UnaryInstr *>(*bb_it)->GetType(), inst_t::jmp);
+    EXPECT_EQ(dynamic_cast<const Label *>(dynamic_cast<UnaryInstr *>(*bb_it)->GetOpnd(0))->GetLabelName(), "loop");
+
+    ++bb_it;
+    EXPECT_EQ(bb_it, bb->end());
+// =====================================================================================================
+// =================================== Testing clone method ============================================
+
+    auto bb_clone = bb->clone();
+    auto bb_clone_it = bb_clone->begin();
+    bb_it = bb->begin();
+    EXPECT_EQ(dynamic_cast<BinaryInstr *>(*bb_it)->GetType(), dynamic_cast<BinaryInstr *>(*bb_clone_it)->GetType());
+    EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<BinaryInstr *>(*bb_it)->GetOpnd(0))->GetRegIdx(),
+              dynamic_cast<const IReg *>(dynamic_cast<BinaryInstr *>(*bb_clone_it)->GetOpnd(0))->GetRegIdx());
+    EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<BinaryInstr *>(*bb_it)->GetOpnd(1))->GetRegIdx(),
+              dynamic_cast<const IReg *>(dynamic_cast<BinaryInstr *>(*bb_clone_it)->GetOpnd(1))->GetRegIdx());
+
+    ++bb_it;
+    ++bb_clone_it;
+    EXPECT_EQ(dynamic_cast<UnaryInstr *>(*bb_it)->GetType(), dynamic_cast<UnaryInstr *>(*bb_clone_it)->GetType());
+    EXPECT_EQ(dynamic_cast<const Label *>(dynamic_cast<UnaryInstr *>(*bb_it)->GetOpnd(0))->GetLabelName(),
+              dynamic_cast<const Label *>(dynamic_cast<UnaryInstr *>(*bb_clone_it)->GetOpnd(0))->GetLabelName());
+
+    ++bb_it;
+    ++bb_clone_it;
+    EXPECT_EQ(dynamic_cast<TernaryInstr *>(*bb_it)->GetType(), dynamic_cast<TernaryInstr *>(*bb_clone_it)->GetType());
+    EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<TernaryInstr *>(*bb_it)->GetOpnd(0))->GetRegIdx(),
+              dynamic_cast<const IReg *>(dynamic_cast<TernaryInstr *>(*bb_clone_it)->GetOpnd(0))->GetRegIdx());
+    EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<TernaryInstr *>(*bb_it)->GetOpnd(1))->GetRegIdx(),
+              dynamic_cast<const IReg *>(dynamic_cast<TernaryInstr *>(*bb_clone_it)->GetOpnd(1))->GetRegIdx());
+    EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<TernaryInstr *>(*bb_it)->GetOpnd(2))->GetRegIdx(),
+              dynamic_cast<const IReg *>(dynamic_cast<TernaryInstr *>(*bb_clone_it)->GetOpnd(2))->GetRegIdx());
+
+    ++bb_it;
+    ++bb_clone_it;
+    EXPECT_EQ(dynamic_cast<UnaryInstr *>(*bb_it)->GetType(),
+              dynamic_cast<UnaryInstr *>(*bb_clone_it)->GetType());
+    EXPECT_EQ(dynamic_cast<const Label *>(dynamic_cast<UnaryInstr *>(*bb_it)->GetOpnd(0))->GetLabelName(),
+              dynamic_cast<const Label *>(dynamic_cast<UnaryInstr *>(*bb_clone_it)->GetOpnd(0))->GetLabelName());
+
+    ++bb_clone_it;
+    EXPECT_EQ(bb_clone_it, bb_clone->end());
+// =====================================================================================================
 
     delete empty_bb;
     delete bb_pushback;
@@ -194,5 +234,11 @@ TEST(ir_architecture, basic_block) {
     delete mul_inst;
     delete jmp_inst;
 }
+
+TEST(ir_architecture, ir_graph) {
+
+}
+
+
 
 

@@ -1,10 +1,12 @@
 //
 // Created by denist on 10/1/22.
 //
-#include "ir_graph.h"
 
 #ifndef VM_IR_FUNCTION_H
 #define VM_IR_FUNCTION_H
+
+#include "ir_graph.h"
+
 class MethodInfo {};
 
 class IRFunction : public IRGraphBuilder, MethodInfo {

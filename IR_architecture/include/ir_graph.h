@@ -1,4 +1,5 @@
 #include "ilist_nodes.h"
+#include <map>
 
 #ifndef VM_IR_GRAPH_H
 #define VM_IR_GRAPH_H
@@ -10,6 +11,8 @@ class BackendInfo {};
 class OptimisationsInfo {};
 
 class IRGraphStorage : public RuntimeInfo, BackendInfo, OptimisationsInfo {
+public:
+    IRGraphStorage(BasicBlock *root, IRFunction *func) : root_(root->clone()), func_(func) {}
 
 protected:
     IRFunction *func_;
@@ -20,15 +23,13 @@ class IRGraphBuilder : public IRGraphStorage {
 public:
     using sztype = size_t;
 
+    IRGraphBuilder(BasicBlock *root, IRFunction *func) : IRGraphStorage(root, func) {}
+
     void CreateAndInsertBBBack(InstructionBase *start_instr, const std::string &label = "") {
         auto *new_bb = new BasicBlock(this, label, start_instr);
 
         root_->SetNext(new_bb);
         new_bb->SetPrev(root_);
-    }
-
-    void CreateFunction() {
-        
     }
 
     std::unique_ptr<BinaryInstr> CreateMoviU64(IReg::reg_t reg_type, IReg::idx_type reg_idx, uint64_t imm_value) {
@@ -82,6 +83,7 @@ public:
     }
 private:
     BasicBlock *inserter_cursor_;
+    std::map<int, double> map_;
 };
 
 #endif // VM_IR_GRAPH_H

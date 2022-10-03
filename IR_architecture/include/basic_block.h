@@ -17,20 +17,26 @@ public:
             last_inst_ = nullptr;
             return;
         } 
-        InstructionBase *first_inst = nullptr;
+        const InstructionBase *cur_inst = start_inst;
         InstructionBase *prev_inst = nullptr;
-        while(start_inst != nullptr) {
-            InstructionBase *new_instr = start_inst->clone();
+        while(cur_inst != nullptr) {
+            InstructionBase *new_instr = cur_inst->clone();
             new_instr->SetPrev(prev_inst);
             if(prev_inst != nullptr) {
                 prev_inst->SetNext(new_instr);
             }
+            if(cur_inst == start_inst) {
+                first_inst_ = new_instr;
+            }
+
             prev_inst = new_instr;
-            start_inst = start_inst->GetNext();
+            cur_inst = cur_inst->GetNext();
         }
         prev_inst->SetNext(nullptr);
         last_inst_ = prev_inst;
     }
+
+    BasicBlock(const BasicBlock &rhs) : BasicBlock(nullptr, rhs.name_, rhs.first_inst_) {}
 
     template <typename elt>
     class bb_iterator : std::iterator<std::bidirectional_iterator_tag,
@@ -51,6 +57,17 @@ public:
         bb_iterator operator++(int) {
             auto old_pos = *this;
             cur_pos = cur_pos->GetNext();
+            return old_pos;
+        }
+
+        bb_iterator &operator--() {
+            cur_pos = cur_pos->GetPrev();
+            return *this;
+        }
+
+        bb_iterator operator--(int) {
+            auto old_pos = *this;
+            cur_pos = cur_pos->GetPrev();
             return old_pos;
         }
 
@@ -108,7 +125,11 @@ public:
     }
 
     void SetFirstInst(InstructionBase *first_inst) {
+        auto first_inst_old = first_inst_;
         first_inst_ = first_inst->clone();
+        first_inst_->SetNext(first_inst_old->GetNext());
+        first_inst_->GetNext()->SetPrev(first_inst_);
+        delete first_inst_old;
     }
 
     const InstructionBase *GetLastInst() const {
@@ -116,7 +137,11 @@ public:
     }
 
     void SetLastInst(InstructionBase *last_inst) {
+        auto last_inst_old = last_inst_;
         last_inst_ = last_inst->clone();
+        last_inst_->SetPrev(last_inst_old->GetPrev());
+        last_inst_->GetPrev()->SetNext(last_inst_);
+        delete last_inst_old;
     }
 
     std::string GetBBName() const {
@@ -135,12 +160,16 @@ public:
              Instruction removing
              */
 
-    ~BasicBlock() {
+    virtual ~BasicBlock() {
         while(first_inst_ != nullptr) {
             auto* next = first_inst_->GetNext();
             delete first_inst_;
             first_inst_ = next;
         }
+    }
+
+    virtual BasicBlock *clone() const {
+        return new BasicBlock(*this);
     }
 
 protected:
