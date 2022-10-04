@@ -11,7 +11,6 @@ class BasicBlock : public ilist_graph_node<BasicBlock> {
 public:
 
     BasicBlock(IRGraph *graph = nullptr, const std::string &name = "", const InstructionBase *start_inst = nullptr);
-
     BasicBlock(const BasicBlock &rhs) : BasicBlock(nullptr, rhs.name_, rhs.first_inst_) {}
 
     template <typename elt>
