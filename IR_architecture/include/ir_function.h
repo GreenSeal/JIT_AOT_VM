@@ -33,27 +33,13 @@ public:
         return func_name_;
     }
 
-    void SetArgAt(OperandBase *arg, size_t idx) {
-        if(idx < args_.size()) {
-            throw std::invalid_argument("Invalid idx given to SetArgMethod of IRFunction class");
-        }
-
-        OperandBase *new_arg = arg->clone();
-        OperandBase *old_arg = args_[idx];
-        args_[idx] = new_arg;
-        delete old_arg;
-    }
+    void SetArgAt(OperandBase *arg, size_t idx);
+    const OperandBase *GetArgAt(size_t idx) const;
 
     void PushBackArg(OperandBase *arg) {
         args_.emplace_back(arg->clone());
     }
 
-    const OperandBase *GetArgAt(size_t idx) const {
-        if(idx < args_.size()) {
-            throw std::invalid_argument("Invalid idx given to GetArgAt method of IRFunction class");
-        }
-        return args_[idx];
-    }
 
 private:
     prim_type ret_type_;

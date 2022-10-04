@@ -10,31 +10,7 @@ class IRGraph;
 class BasicBlock : public ilist_graph_node<BasicBlock> {
 public:
 
-    BasicBlock(IRGraph *graph = nullptr, const std::string &name = "", const InstructionBase *start_inst = nullptr) :
-               graph_(graph), name_(name) {
-        if(start_inst == nullptr) {
-            first_inst_ = nullptr;
-            last_inst_ = nullptr;
-            return;
-        } 
-        const InstructionBase *cur_inst = start_inst;
-        InstructionBase *prev_inst = nullptr;
-        while(cur_inst != nullptr) {
-            InstructionBase *new_instr = cur_inst->clone();
-            new_instr->SetPrev(prev_inst);
-            if(prev_inst != nullptr) {
-                prev_inst->SetNext(new_instr);
-            }
-            if(cur_inst == start_inst) {
-                first_inst_ = new_instr;
-            }
-
-            prev_inst = new_instr;
-            cur_inst = cur_inst->GetNext();
-        }
-        prev_inst->SetNext(nullptr);
-        last_inst_ = prev_inst;
-    }
+    BasicBlock(IRGraph *graph = nullptr, const std::string &name = "", const InstructionBase *start_inst = nullptr);
 
     BasicBlock(const BasicBlock &rhs) : BasicBlock(nullptr, rhs.name_, rhs.first_inst_) {}
 
@@ -103,45 +79,17 @@ public:
         return const_iterator();
     }
 
-    void AddInstBack(const InstructionBase *inst) {
-        if(inst == nullptr) {
-            throw std::invalid_argument("Nullptr given in AddInstBack method of BasicBlock class");
-        }
-
-        InstructionBase *new_inst = inst->clone();
-        new_inst->SetPrev(nullptr);
-        new_inst->SetNext(nullptr);
-        if(first_inst_ == nullptr) {
-            first_inst_ = last_inst_ = new_inst;
-        } else {
-            last_inst_->SetNext(new_inst);
-            new_inst->SetPrev(last_inst_);
-            last_inst_ = new_inst;
-        }
-    }
+    void AddInstBack(const InstructionBase *inst);
 
     const InstructionBase *GetFirstInst() const {
         return first_inst_;
     }
 
-    void SetFirstInst(InstructionBase *first_inst) {
-        auto first_inst_old = first_inst_;
-        first_inst_ = first_inst->clone();
-        first_inst_->SetNext(first_inst_old->GetNext());
-        first_inst_->GetNext()->SetPrev(first_inst_);
-        delete first_inst_old;
-    }
+    void SetFirstInst(InstructionBase *first_inst);
+    void SetLastInst(InstructionBase *last_inst);
 
     const InstructionBase *GetLastInst() const {
         return last_inst_;
-    }
-
-    void SetLastInst(InstructionBase *last_inst) {
-        auto last_inst_old = last_inst_;
-        last_inst_ = last_inst->clone();
-        last_inst_->SetPrev(last_inst_old->GetPrev());
-        last_inst_->GetPrev()->SetNext(last_inst_);
-        delete last_inst_old;
     }
 
     std::string GetBBName() const {

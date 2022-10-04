@@ -11,6 +11,7 @@ target_include_directories(IR_architecture_test
 target_link_libraries(
         IR_architecture_test
         GTest::gtest_main
+        IR_architecture_lib
 )
 
 include(GoogleTest)
