@@ -9,7 +9,7 @@
 
 class MethodInfo {};
 
-class IRFunction : public IRGraphBuilder, MethodInfo {
+class IRFunction : public IRGraph, MethodInfo {
 public:
     void SetRetType(prim_type ret_type) {
         ret_type_ = ret_type;

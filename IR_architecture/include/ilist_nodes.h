@@ -40,60 +40,60 @@ public:
     using sztype = size_t;
 
     Elt *GetNext(sztype idx) const {
-        if(idx < succ.size()) {
-            return succ.at(idx);
-        } else if(succ.size() != 0){
-            return succ.at(succ.size()-1);
+        if(idx < succ_.size()) {
+            return succ_.at(idx);
+        } else if(succ_.size() != 0){
+            return succ_.at(succ_.size()-1);
         } else {
             throw std::invalid_argument("Invalid successor idx given to GetNext of class ilist_graph_node");
         }
     }
 
     Elt *GetPrev(sztype idx) const {
-        if(idx < predec.size()) {
-            return predec.at(idx);
-        } else if(predec.size() != 0){
-            return predec.at(predec.size()-1);
+        if(idx < predec_.size()) {
+            return predec_.at(idx);
+        } else if(predec_.size() != 0){
+            return predec_.at(predec_.size()-1);
         } else {
             throw std::invalid_argument("Invalid predecessor idx given to GetNext of class ilist_graph_node");
         }
     }
 
-    void SetNext(Elt *elt) {
-        succ.push_back(elt);
+    void PushBackSucc(Elt *elt) {
+        succ_.push_back(elt);
     }
 
     void SetNext(Elt *elt, sztype idx) {
-        if(idx < succ.size()) {
-            return succ[idx];
+        if(idx < succ_.size()) {
+            return succ_[idx];
         } else {
             throw std::invalid_argument("Invalid successor idx given to SetNext of class ilist_graph_node");
         }
     }
 
-    void SetPrev(Elt *elt) {
-        predec.push_back(elt);
+    void PushBackPredec(Elt *elt) {
+        predec_.push_back(elt);
     }
 
     void SetPrev(Elt *elt, sztype idx) {
-        if(idx < predec.size()) {
-            return predec[idx];
+        if(idx < predec_.size()) {
+            return predec_[idx];
         } else {
             throw std::invalid_argument("Invalid predecessor idx given to SetNext of class ilist_graph_node");
         }
     }
 
     typename std::vector<Elt *>::size_type PredecSize() const {
-        return predec.size();
+        return predec_.size();
     }
 
     typename std::vector<Elt *>::size_type SuccSize() const {
-        return succ.size();
+        return succ_.size();
     }
 
-private:
-    std::vector<Elt *> predec;
-    std::vector<Elt *> succ;
+protected:
+    std::vector<Elt *> predec_;
+    std::vector<Elt *> succ_;
 };
 
 #endif //JIT_AOT_IN_VM_ILIST_NODES_H

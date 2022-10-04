@@ -5,12 +5,12 @@
 #include <exception>
 #include "instructions.h"
 
-class IRGraphStorage;
+class IRGraph;
 
 class BasicBlock : public ilist_graph_node<BasicBlock> {
 public:
 
-    BasicBlock(IRGraphStorage *graph = nullptr, const std::string &name = "", const InstructionBase *start_inst = nullptr) :
+    BasicBlock(IRGraph *graph = nullptr, const std::string &name = "", const InstructionBase *start_inst = nullptr) :
                graph_(graph), name_(name) {
         if(start_inst == nullptr) {
             first_inst_ = nullptr;
@@ -152,7 +152,7 @@ public:
         name_ = name;
     }
 
-    IRGraphStorage *GetIRGraph() const {
+    IRGraph *GetIRGraph() const {
         return graph_;
     }
 
@@ -173,7 +173,7 @@ public:
     }
 
 protected:
-    IRGraphStorage *graph_;
+    IRGraph *graph_;
     InstructionBase *first_inst_;
     InstructionBase *last_inst_;
     std::string name_;

@@ -237,6 +237,87 @@ TEST(ir_architecture, basic_block) {
 
 TEST(ir_architecture, ir_graph) {
 
+    auto movi_inst1 = new BinaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64),
+                                                   new UInt32Const(1), inst_t::movi_u64);
+    auto movi_inst2 = new BinaryInstr(new IReg(IReg::reg_t::v, 1, prim_type::u64),
+                                      new UInt32Const(2), inst_t::movi_u64);
+    auto cast_inst = new BinaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64),
+                                      new IReg(IReg::reg_t::a, 0, prim_type::u32), inst_t::u32tou64);
+    auto start_bb = new BasicBlock(nullptr, "start");
+    start_bb->AddInstBack(movi_inst1);
+    start_bb->AddInstBack(movi_inst2);
+    start_bb->AddInstBack(cast_inst);
+
+    auto cmp_inst = new BinaryInstr(new IReg(IReg::reg_t::v, 1, prim_type::u64),
+                                    new IReg(IReg::reg_t::v, 2, prim_type::u64),
+                                    inst_t::cmp_u64);
+    auto ja_inst = new UnaryInstr(new Label("done"), inst_t::ja);
+    auto mul_inst = new TernaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64),
+                                     new IReg(IReg::reg_t::v, 0, prim_type::u64),
+                                     new IReg(IReg::reg_t::v, 1, prim_type::u64),
+                                     inst_t::mul_u64);
+    auto jmp_inst = new UnaryInstr(new Label("loop"), inst_t::jmp);
+
+    auto loop_bb1 = new BasicBlock(nullptr, "loop1");
+    auto loop_bb2 = new BasicBlock(nullptr, "loop2");
+    loop_bb1->AddInstBack(cmp_inst);
+    loop_bb1->AddInstBack(ja_inst);
+    loop_bb2->AddInstBack(mul_inst);
+    loop_bb2->AddInstBack(jmp_inst);
+
+    auto ret_inst = new UnaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64), inst_t::ret_u64);
+
+    auto done_bb = new BasicBlock(nullptr, "done");
+    done_bb->AddInstBack(ret_inst);
+
+    start_bb->PushBackSucc(loop_bb1);
+    loop_bb1->PushBackPredec(loop_bb2);
+    loop_bb1->PushBackPredec(start_bb);
+    loop_bb1->PushBackSucc(loop_bb2);
+    loop_bb1->PushBackSucc(done_bb);
+    loop_bb2->PushBackPredec(loop_bb1);
+    loop_bb2->PushBackSucc(loop_bb1);
+    loop_bb2->PushBackSucc(done_bb);
+    done_bb->PushBackPredec(loop_bb2);
+    done_bb->PushBackPredec(loop_bb1);
+
+    auto ir_graph = new IRGraph(start_bb);
+    auto first_bb = ir_graph->GetInsertCursor();
+    auto second_bb = ir_graph->MoveInserterNext(0);
+    auto third_bb = ir_graph->MoveInserterNext(0);
+    ir_graph->MoveInserterPrev(0);
+    auto forth_bb = ir_graph->MoveInserterNext(1);
+
+    EXPECT_EQ(ir_graph->IsBBInGraph(first_bb), true);
+    EXPECT_EQ(ir_graph->IsBBInGraph(second_bb), true);
+    EXPECT_EQ(ir_graph->IsBBInGraph(third_bb), true);
+    EXPECT_EQ(ir_graph->IsBBInGraph(forth_bb), true);
+
+    EXPECT_EQ(ir_graph->IsBBInGraph(start_bb), false);
+    EXPECT_EQ(ir_graph->IsBBInGraph(loop_bb1), false);
+    EXPECT_EQ(ir_graph->IsBBInGraph(loop_bb2), false);
+    EXPECT_EQ(ir_graph->IsBBInGraph(done_bb), false);
+
+    EXPECT_EQ(first_bb->GetBBName(), "start");
+    EXPECT_EQ(second_bb->GetBBName(), "loop1");
+    EXPECT_EQ(third_bb->GetBBName(), "loop2");
+    EXPECT_EQ(forth_bb->GetBBName(), "done");
+
+    EXPECT_EQ(ir_graph->IsBBsConnected(first_bb, second_bb), true);
+    EXPECT_EQ(ir_graph->IsBBsConnected(second_bb, third_bb), true);
+    EXPECT_EQ(ir_graph->IsBBsConnected(second_bb, forth_bb), true);
+    EXPECT_EQ(ir_graph->IsBBsConnected(third_bb, second_bb), true);
+    EXPECT_EQ(ir_graph->IsBBsConnected(third_bb, forth_bb), true);
+
+    EXPECT_EQ(ir_graph->IsBBsConnected(first_bb, third_bb), false);
+    EXPECT_EQ(ir_graph->IsBBsConnected(second_bb, first_bb), false);
+    EXPECT_EQ(ir_graph->IsBBsConnected(forth_bb, third_bb), false);
+    EXPECT_EQ(ir_graph->IsBBsConnected(forth_bb, second_bb), false);
+    EXPECT_EQ(ir_graph->IsBBsConnected(third_bb, first_bb), false);
+}
+
+TEST(ir_architecture, ir_function) {
+
 }
 
 
