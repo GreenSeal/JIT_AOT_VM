@@ -269,7 +269,7 @@ TEST(ir_architecture, ir_graph) {
 
     auto done_bb = new BasicBlock(nullptr, "done");
     done_bb->AddInstBack(ret_inst);
-
+// ========================== Testing IRGraph creation with ready CFG ========================
     start_bb->PushBackSucc(loop_bb1);
     loop_bb1->PushBackPredec(loop_bb2);
     loop_bb1->PushBackPredec(start_bb);
@@ -314,10 +314,119 @@ TEST(ir_architecture, ir_graph) {
     EXPECT_EQ(ir_graph->IsBBsConnected(forth_bb, third_bb), false);
     EXPECT_EQ(ir_graph->IsBBsConnected(forth_bb, second_bb), false);
     EXPECT_EQ(ir_graph->IsBBsConnected(third_bb, first_bb), false);
+// ===========================================================================================
+
+// =========== Testing IRGraph creation using inserter cursor and pushing bbs back ===========
+
+    auto ir_graph_pushback = new IRGraph();
+
+    ir_graph_pushback->AddBBToBegin(start_bb);
+    ir_graph_pushback->ResetInsertCursor();
+    ir_graph_pushback->PushBackSucc(loop_bb1);
+    auto new_start_bb = ir_graph_pushback->GetInsertCursor();
+    auto new_loop_bb1 = ir_graph_pushback->MoveInserterNext(0);
+    ir_graph_pushback->PushBackPred(new_start_bb);
+    ir_graph_pushback->PushBackSucc(loop_bb2);
+    ir_graph_pushback->PushBackSucc(done_bb);
+    auto new_loop_bb2 = ir_graph_pushback->MoveInserterNext(0);
+    ir_graph_pushback->PushBackPred(new_loop_bb1);
+    ir_graph_pushback->PushBackSucc(new_loop_bb1);
+    ir_graph_pushback->MoveInserterPrev(0);
+    ir_graph_pushback->PushBackPred(new_loop_bb2);
+    auto new_done_bb = ir_graph_pushback->MoveInserterNext(1);
+    ir_graph_pushback->PushBackPred(new_loop_bb2);
+    ir_graph_pushback->PushBackPred(new_loop_bb1);
+    ir_graph_pushback->MoveInserterPrev(0);
+    ir_graph_pushback->PushBackSucc(new_done_bb);
+
+    EXPECT_EQ(ir_graph_pushback->IsBBInGraph(new_start_bb), true);
+    EXPECT_EQ(ir_graph_pushback->IsBBInGraph(new_loop_bb1), true);
+    EXPECT_EQ(ir_graph_pushback->IsBBInGraph(new_loop_bb2), true);
+    EXPECT_EQ(ir_graph_pushback->IsBBInGraph(new_done_bb), true);
+
+    EXPECT_EQ(ir_graph_pushback->IsBBInGraph(start_bb), false);
+    EXPECT_EQ(ir_graph_pushback->IsBBInGraph(loop_bb1), false);
+    EXPECT_EQ(ir_graph_pushback->IsBBInGraph(loop_bb2), false);
+    EXPECT_EQ(ir_graph_pushback->IsBBInGraph(done_bb), false);
+
+    EXPECT_EQ(first_bb->GetBBName(), "start");
+    EXPECT_EQ(second_bb->GetBBName(), "loop1");
+    EXPECT_EQ(third_bb->GetBBName(), "loop2");
+    EXPECT_EQ(forth_bb->GetBBName(), "done");
+
+    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(new_start_bb, new_loop_bb1), true);
+    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(new_loop_bb1, new_loop_bb2), true);
+    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(new_loop_bb1, new_done_bb), true);
+    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(new_loop_bb2, new_loop_bb1), true);
+    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(new_loop_bb2, new_done_bb), true);
+
+    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(new_start_bb, new_loop_bb2), false);
+    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(new_loop_bb1, new_start_bb), false);
+    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(new_done_bb, new_loop_bb2), false);
+    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(new_done_bb, new_loop_bb1), false);
+    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(new_done_bb, new_start_bb), false);
+// ===========================================================================================
+
 }
 
 TEST(ir_architecture, ir_function) {
+    auto movi_inst1 = new BinaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64),
+                                      new UInt32Const(1), inst_t::movi_u64);
+    auto movi_inst2 = new BinaryInstr(new IReg(IReg::reg_t::v, 1, prim_type::u64),
+                                      new UInt32Const(2), inst_t::movi_u64);
+    auto cast_inst = new BinaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64),
+                                     new IReg(IReg::reg_t::a, 0, prim_type::u32), inst_t::u32tou64);
+    auto start_bb = new BasicBlock(nullptr, "start");
+    start_bb->AddInstBack(movi_inst1);
+    start_bb->AddInstBack(movi_inst2);
+    start_bb->AddInstBack(cast_inst);
 
+    auto cmp_inst = new BinaryInstr(new IReg(IReg::reg_t::v, 1, prim_type::u64),
+                                    new IReg(IReg::reg_t::v, 2, prim_type::u64),
+                                    inst_t::cmp_u64);
+    auto ja_inst = new UnaryInstr(new Label("done"), inst_t::ja);
+    auto mul_inst = new TernaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64),
+                                     new IReg(IReg::reg_t::v, 0, prim_type::u64),
+                                     new IReg(IReg::reg_t::v, 1, prim_type::u64),
+                                     inst_t::mul_u64);
+    auto jmp_inst = new UnaryInstr(new Label("loop"), inst_t::jmp);
+
+    auto loop_bb1 = new BasicBlock(nullptr, "loop1");
+    auto loop_bb2 = new BasicBlock(nullptr, "loop2");
+    loop_bb1->AddInstBack(cmp_inst);
+    loop_bb1->AddInstBack(ja_inst);
+    loop_bb2->AddInstBack(mul_inst);
+    loop_bb2->AddInstBack(jmp_inst);
+
+    auto ret_inst = new UnaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64), inst_t::ret_u64);
+
+    auto done_bb = new BasicBlock(nullptr, "done");
+    done_bb->AddInstBack(ret_inst);
+
+    start_bb->PushBackSucc(loop_bb1);
+    loop_bb1->PushBackPredec(loop_bb2);
+    loop_bb1->PushBackPredec(start_bb);
+    loop_bb1->PushBackSucc(loop_bb2);
+    loop_bb1->PushBackSucc(done_bb);
+    loop_bb2->PushBackPredec(loop_bb1);
+    loop_bb2->PushBackSucc(loop_bb1);
+    loop_bb2->PushBackSucc(done_bb);
+    done_bb->PushBackPredec(loop_bb2);
+    done_bb->PushBackPredec(loop_bb1);
+
+    OperandBase *arg = new IReg(IReg::reg_t::a, 0, prim_type::u32);
+
+    IRFunction func("fact", std::vector{arg}, prim_type::u64, start_bb);
+    auto first_bb = func.GetInsertCursor();
+    auto second_bb = func.MoveInserterNext(0);
+    auto third_bb = func.MoveInserterNext(0);
+    auto forth_bb = func.MoveInserterNext(1);
+
+    EXPECT_EQ(func.IsBBsConnected(first_bb, second_bb), true);
+    EXPECT_EQ(func.IsBBsConnected(second_bb, third_bb), true);
+    EXPECT_EQ(func.IsBBsConnected(second_bb, forth_bb), true);
+    EXPECT_EQ(func.IsBBsConnected(third_bb, second_bb), true);
+    EXPECT_EQ(func.IsBBsConnected(third_bb, forth_bb), true);
 }
 
 

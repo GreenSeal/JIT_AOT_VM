@@ -22,27 +22,26 @@ class IRGraph : public RuntimeInfo, BackendInfo, OptimisationsInfo {
 public:
     using sztype = size_t;
 
-    IRGraph(BasicBlock *root, IRFunction *func = nullptr) : func_(func) {
+    IRGraph(const BasicBlock *root = nullptr, IRFunction *func = nullptr) : func_(func), root_(nullptr), inserter_cursor_(nullptr) {
         if(root != nullptr) {
 
-            // first we go around all the vertices of the graph using BFS algorythm and copy them
+            // first we go around all the vertices of the graph using BFS algorithm and copy them
             // ==================================================================================
-            std::unordered_map<BasicBlock*, BasicBlock*> old_to_new_map;
+            std::unordered_map<const BasicBlock*, BasicBlock*> old_to_new_map;
 
-            std::unordered_set<BasicBlock*> explored_old_bbs;
-            std::queue<BasicBlock*> bbs_to_copy;
+            std::unordered_set<const BasicBlock*> explored_old_bbs;
+            std::queue<const BasicBlock*> bbs_to_copy;
 
             bbs_to_copy.push(root);
             explored_old_bbs.insert(root);
 
             while(!bbs_to_copy.empty()) {
-                BasicBlock *old_bb = bbs_to_copy.front();
+                auto old_bb = bbs_to_copy.front();
                 bbs_to_copy.pop();
 
                 BasicBlock *new_bb = old_bb->clone();
                 old_to_new_map[old_bb] = new_bb;
-
-                adjacency_list_[new_bb] = std::list<BasicBlock*>();
+                bb_set_.insert(new_bb);
 
                 for(size_t idx = 0; idx < old_bb->SuccSize(); ++idx) {
                     if(!explored_old_bbs.contains(old_bb->GetNext(idx))) {
@@ -62,7 +61,7 @@ public:
             explored_old_bbs.insert(root);
 
             while(!bbs_to_copy.empty()) {
-                BasicBlock *old_bb = bbs_to_copy.front();
+                auto old_bb = bbs_to_copy.front();
                 bbs_to_copy.pop();
 
                 BasicBlock *new_bb = old_to_new_map.at(old_bb);
@@ -76,7 +75,6 @@ public:
                     BasicBlock *old_succ = old_bb->GetNext(idx);
                     BasicBlock *new_succ = old_to_new_map.at(old_succ);
                     new_bb->PushBackSucc(new_succ);
-                    adjacency_list_.at(new_bb).push_back(new_succ);
 
                     if(!explored_old_bbs.contains(old_succ)) {
                         bbs_to_copy.push(old_succ);
@@ -89,6 +87,8 @@ public:
             inserter_cursor_ = root_;
         }
     }
+
+    IRGraph(const IRGraph &rhs) : IRGraph(rhs.root_)  {}
 
     void CreateAndInsertBBBack(InstructionBase *start_instr, const std::string &label = "") {
         auto *new_bb = new BasicBlock(this, label, start_instr);
@@ -148,8 +148,8 @@ public:
     }
 
     bool IsBBsConnected(BasicBlock *bb, BasicBlock *bb_succ) const {
-        for(auto it = adjacency_list_.at(bb).begin(), end = adjacency_list_.at(bb).end(); it != end; ++it) {
-            if(*it == bb_succ)
+        for(size_t idx = 0; idx < bb->SuccSize(); ++idx) {
+            if(bb->GetNext(idx) == bb_succ)
                 return true;
         }
 
@@ -157,15 +157,46 @@ public:
     }
 
     bool IsBBInGraph(BasicBlock *bb) {
-        return adjacency_list_.contains(bb);
+        return bb_set_.contains(bb);
     }
 
-    void PushSuccForCurBB(const BasicBlock *bb) {
+    void PushBackSucc(BasicBlock *bb) {
+        if(inserter_cursor_->SuccSize() >= 2) {
+            throw std::invalid_argument("Trying to third successor to basic block at ir_graph");
+        }
 
+        if(bb_set_.contains(bb)) {
+            inserter_cursor_->PushBackSucc(bb);
+        } else {
+            auto new_bb = bb->clone();
+            bb_set_.insert(new_bb);
+            inserter_cursor_->PushBackSucc(new_bb);
+
+        }
     }
 
-    void PushPredecForCurBB(const BasicBlock *bb) {
+    void PushBackPred(BasicBlock *bb) {
+        if(bb_set_.contains(bb)) {
+            inserter_cursor_->PushBackPredec(bb);
+        } else {
+            auto new_bb = bb->clone();
+            bb_set_.insert(new_bb);
+            inserter_cursor_->PushBackPredec(new_bb);
+        }
+    }
 
+    void AddBBToBegin(BasicBlock *bb) {
+        if(root_ == nullptr) {
+            root_ = bb->clone();
+            bb_set_.insert(root_);
+            return;
+        }
+
+        auto new_root = bb->clone();
+        new_root->PushBackSucc(root_);
+        root_->PushBackPredec(new_root);
+        root_ = new_root;
+        bb_set_.insert(root_);
     }
 
     void InsertInstAtEndCurBB(const InstructionBase *inst) {
@@ -196,7 +227,7 @@ public:
 
 protected:
     IRFunction *func_;
-    std::unordered_map<BasicBlock*, std::list<BasicBlock*>> adjacency_list_;
+    std::unordered_set<BasicBlock*> bb_set_;
     BasicBlock *root_;
     BasicBlock *inserter_cursor_;
 };
