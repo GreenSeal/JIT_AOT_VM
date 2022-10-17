@@ -6,9 +6,7 @@
 #define JIT_AOT_IN_VM_OPERANDS_H
 
 enum class opnd_t {ireg, label, imm};
-enum class prim_type {u32, u64};
-
-
+enum class prim_type {u32, u64, none};
 
 class OperandBase {
 public:

@@ -49,14 +49,14 @@ TEST(ir_architecture, operands) {
 }
 
 TEST(ir_architecture, instructions) {
-    InstructionBase *base_inst = new InstructionBase(class_t::base, inst_t::ret);
-    InstructionBase *unary_inst = new UnaryInstr(new Label("loop"), inst_t::jmp);
+    InstructionBase *base_inst = new InstructionBase(class_t::base, inst_t::ret, prim_type::none);
+    InstructionBase *unary_inst = new UnaryInstr(new Label("loop"), inst_t::jmp, prim_type::none);
     InstructionBase *binary_inst = new BinaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64),
-                                                   new UInt32Const(42), inst_t::movi_u64);
+                                                   new UInt32Const(42), inst_t::movi, prim_type::u64);
     InstructionBase *ternary_inst = new TernaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64),
                                                      new IReg(IReg::reg_t::v, 0, prim_type::u64),
                                                      new IReg(IReg::reg_t::v, 1, prim_type::u64),
-                                                     inst_t::mul_u64);
+                                                     inst_t::mul, prim_type::u64);
 
     EXPECT_EQ(base_inst->GetType(), inst_t::ret);
     EXPECT_EQ(base_inst->GetClassType(), class_t::base);
@@ -109,13 +109,13 @@ TEST(ir_architecture, basic_block) {
 
     auto cmp_inst = new BinaryInstr(new IReg(IReg::reg_t::v, 1, prim_type::u64),
                                     new IReg(IReg::reg_t::v, 2, prim_type::u64),
-                                    inst_t::cmp_u64);
-    auto ja_inst = new UnaryInstr(new Label("done"), inst_t::ja);
+                                    inst_t::cmp, prim_type::u64);
+    auto ja_inst = new UnaryInstr(new Label("done"), inst_t::ja, prim_type::none);
     auto mul_inst = new TernaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64),
                                               new IReg(IReg::reg_t::v, 0, prim_type::u64),
                                               new IReg(IReg::reg_t::v, 1, prim_type::u64),
-                                              inst_t::mul_u64);
-    auto jmp_inst = new UnaryInstr(new Label("loop"), inst_t::jmp);
+                                              inst_t::mul, prim_type::u64);
+    auto jmp_inst = new UnaryInstr(new Label("loop"), inst_t::jmp, prim_type::none);
 
 // =============== Testing forward iteration of bb, created through AddInstBack ========================
     auto bb_pushback = new BasicBlock();
@@ -129,7 +129,7 @@ TEST(ir_architecture, basic_block) {
     bb_pushback->ReplaceInstBack(jmp_inst);
 
     auto bb_pb_it = bb_pushback->begin();
-    EXPECT_EQ(dynamic_cast<BinaryInstr *>(*bb_pb_it)->GetType(), inst_t::cmp_u64);
+    EXPECT_EQ(dynamic_cast<BinaryInstr *>(*bb_pb_it)->GetType(), inst_t::cmp);
     EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<BinaryInstr *>(*bb_pb_it)->GetOpnd(0))->GetRegIdx(),
               1);
     EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<BinaryInstr *>(*bb_pb_it)->GetOpnd(1))->GetRegIdx(),
@@ -141,7 +141,7 @@ TEST(ir_architecture, basic_block) {
               "done");
 
     ++bb_pb_it;
-    EXPECT_EQ(dynamic_cast<TernaryInstr *>(*bb_pb_it)->GetType(), inst_t::mul_u64);
+    EXPECT_EQ(dynamic_cast<TernaryInstr *>(*bb_pb_it)->GetType(), inst_t::mul);
     EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<TernaryInstr *>(*bb_pb_it)->GetOpnd(0))->GetRegIdx(), 0);
     EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<TernaryInstr *>(*bb_pb_it)->GetOpnd(1))->GetRegIdx(), 0);
     EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<TernaryInstr *>(*bb_pb_it)->GetOpnd(2))->GetRegIdx(), 1);
@@ -170,23 +170,8 @@ TEST(ir_architecture, basic_block) {
     auto bb = new BasicBlock(nullptr, "loop", cmp_inst_clone);
 
     auto bb_it = bb->begin();
-    if(dynamic_cast<UnaryInstr*>(*bb_it) == nullptr) {
-        std::cout << "UnaryInst" << std::endl;
-    }
 
-    if(dynamic_cast<BinaryInstr*>(*bb_it) == nullptr) {
-        std::cout << "BinaryInst" << std::endl;
-    }
-
-    if(dynamic_cast<TernaryInstr*>(*bb_it) == nullptr) {
-        std::cout << "TernaryInst" << std::endl;
-    }
-
-    if(dynamic_cast<InstructionBase*>(*bb_it) == nullptr) {
-        std::cout << "InstructionBase" << std::endl;
-    }
-
-    EXPECT_EQ(dynamic_cast<BinaryInstr *>(*bb_it)->GetType(), inst_t::cmp_u64);
+    EXPECT_EQ(dynamic_cast<BinaryInstr *>(*bb_it)->GetType(), inst_t::cmp);
     EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<BinaryInstr *>(*bb_it)->GetOpnd(0))->GetRegIdx(),
               1);
     EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<BinaryInstr *>(*bb_it)->GetOpnd(1))->GetRegIdx(),
@@ -198,7 +183,7 @@ TEST(ir_architecture, basic_block) {
               "done");
 
     ++bb_it;
-    EXPECT_EQ(dynamic_cast<TernaryInstr *>(*bb_it)->GetType(), inst_t::mul_u64);
+    EXPECT_EQ(dynamic_cast<TernaryInstr *>(*bb_it)->GetType(), inst_t::mul);
     EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<TernaryInstr *>(*bb_it)->GetOpnd(0))->GetRegIdx(), 0);
     EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<TernaryInstr *>(*bb_it)->GetOpnd(1))->GetRegIdx(), 0);
     EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<TernaryInstr *>(*bb_it)->GetOpnd(2))->GetRegIdx(), 1);
@@ -256,11 +241,11 @@ TEST(ir_architecture, basic_block) {
 TEST(ir_architecture, ir_graph) {
 
     auto movi_inst1 = new BinaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64),
-                                                   new UInt32Const(1), inst_t::movi_u64);
+                                                   new UInt32Const(1), inst_t::movi, prim_type::u64);
     auto movi_inst2 = new BinaryInstr(new IReg(IReg::reg_t::v, 1, prim_type::u64),
-                                      new UInt32Const(2), inst_t::movi_u64);
+                                      new UInt32Const(2), inst_t::movi, prim_type::u64);
     auto cast_inst = new BinaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64),
-                                      new IReg(IReg::reg_t::a, 0, prim_type::u32), inst_t::u32tou64);
+                                      new IReg(IReg::reg_t::a, 0, prim_type::u32), inst_t::u32tou64, prim_type::none);
     auto start_bb = new BasicBlock(nullptr, "start");
 
     start_bb->ReplaceInstBack(movi_inst1);
@@ -269,13 +254,13 @@ TEST(ir_architecture, ir_graph) {
 
     auto cmp_inst = new BinaryInstr(new IReg(IReg::reg_t::v, 1, prim_type::u64),
                                     new IReg(IReg::reg_t::v, 2, prim_type::u64),
-                                    inst_t::cmp_u64);
-    auto ja_inst = new UnaryInstr(new Label("done"), inst_t::ja);
+                                    inst_t::cmp, prim_type::u64);
+    auto ja_inst = new UnaryInstr(new Label("done"), inst_t::ja, prim_type::none);
     auto mul_inst = new TernaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64),
                                      new IReg(IReg::reg_t::v, 0, prim_type::u64),
                                      new IReg(IReg::reg_t::v, 1, prim_type::u64),
-                                     inst_t::mul_u64);
-    auto jmp_inst = new UnaryInstr(new Label("loop"), inst_t::jmp);
+                                     inst_t::mul, prim_type::u64);
+    auto jmp_inst = new UnaryInstr(new Label("loop"), inst_t::jmp, prim_type::none);
 
     auto loop_bb1 = new BasicBlock(nullptr, "loop1");
     auto loop_bb2 = new BasicBlock(nullptr, "loop2");
@@ -285,7 +270,7 @@ TEST(ir_architecture, ir_graph) {
     loop_bb2->ReplaceInstBack(mul_inst);
     loop_bb2->ReplaceInstBack(jmp_inst);
 
-    auto ret_inst = new UnaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64), inst_t::ret_u64);
+    auto ret_inst = new UnaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64), inst_t::ret, prim_type::u64);
 
     auto done_bb = new BasicBlock(nullptr, "done");
     done_bb->ReplaceInstBack(ret_inst);
@@ -394,11 +379,11 @@ TEST(ir_architecture, ir_graph) {
 
 TEST(ir_architecture, ir_function) {
     auto movi_inst1 = new BinaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64),
-                                      new UInt32Const(1), inst_t::movi_u64);
+                                      new UInt32Const(1), inst_t::movi, prim_type::u64);
     auto movi_inst2 = new BinaryInstr(new IReg(IReg::reg_t::v, 1, prim_type::u64),
-                                      new UInt32Const(2), inst_t::movi_u64);
+                                      new UInt32Const(2), inst_t::movi, prim_type::u64);
     auto cast_inst = new BinaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64),
-                                     new IReg(IReg::reg_t::a, 0, prim_type::u32), inst_t::u32tou64);
+                                     new IReg(IReg::reg_t::a, 0, prim_type::u32), inst_t::u32tou64, prim_type::none);
     auto start_bb = new BasicBlock(nullptr, "start");
     start_bb->ReplaceInstBack(movi_inst1);
     start_bb->ReplaceInstBack(movi_inst2);
@@ -406,13 +391,13 @@ TEST(ir_architecture, ir_function) {
 
     auto cmp_inst = new BinaryInstr(new IReg(IReg::reg_t::v, 1, prim_type::u64),
                                     new IReg(IReg::reg_t::v, 2, prim_type::u64),
-                                    inst_t::cmp_u64);
-    auto ja_inst = new UnaryInstr(new Label("done"), inst_t::ja);
+                                    inst_t::cmp, prim_type::u64);
+    auto ja_inst = new UnaryInstr(new Label("done"), inst_t::ja, prim_type::none);
     auto mul_inst = new TernaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64),
                                      new IReg(IReg::reg_t::v, 0, prim_type::u64),
                                      new IReg(IReg::reg_t::v, 1, prim_type::u64),
-                                     inst_t::mul_u64);
-    auto jmp_inst = new UnaryInstr(new Label("loop"), inst_t::jmp);
+                                     inst_t::mul, prim_type::u64);
+    auto jmp_inst = new UnaryInstr(new Label("loop"), inst_t::jmp, prim_type::none);
 
     auto loop_bb1 = new BasicBlock(nullptr, "loop1");
     auto loop_bb2 = new BasicBlock(nullptr, "loop2");
@@ -421,7 +406,7 @@ TEST(ir_architecture, ir_function) {
     loop_bb2->ReplaceInstBack(mul_inst);
     loop_bb2->ReplaceInstBack(jmp_inst);
 
-    auto ret_inst = new UnaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64), inst_t::ret_u64);
+    auto ret_inst = new UnaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64), inst_t::ret, prim_type::u64);
 
     auto done_bb = new BasicBlock(nullptr, "done");
     done_bb->ReplaceInstBack(ret_inst);
