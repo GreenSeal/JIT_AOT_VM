@@ -14,7 +14,7 @@ public:
     IRFunction(const std::string &func_name, const std::vector<OperandBase*> &args, prim_type ret_type, const IRGraph &body) :
             IRGraph(body), func_name_(func_name), args_(args), ret_type_(ret_type) {}
 
-    IRFunction(const std::string &func_name, const std::vector<OperandBase*> &args, prim_type ret_type, const BasicBlock *body) :
+    IRFunction(const std::string &func_name, const std::vector<OperandBase*> &args, prim_type ret_type, BasicBlock *body) :
             IRGraph(body, this), func_name_(func_name), args_(args), ret_type_(ret_type) {}
 
     void SetRetType(prim_type ret_type) {

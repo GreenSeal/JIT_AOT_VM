@@ -5,7 +5,7 @@
 #ifndef JIT_AOT_IN_VM_ILIST_NODES_H
 #define JIT_AOT_IN_VM_ILIST_NODES_H
 
-#include <vector>
+#include <unordered_set>
 #include <iterator>
 
 template <typename Elt>
@@ -39,61 +39,111 @@ class ilist_graph_node {
 public:
     using sztype = size_t;
 
-    Elt *GetNext(sztype idx) const {
-        if(idx < succ_.size()) {
-            return succ_.at(idx);
-        } else if(succ_.size() != 0){
-            return succ_.at(succ_.size()-1);
-        } else {
-            throw std::invalid_argument("Invalid successor idx given to GetNext of class ilist_graph_node");
-        }
+    typename std::unordered_set<Elt *>::iterator GetSuccBegin() {
+        return succ_.begin();
     }
 
-    Elt *GetPrev(sztype idx) const {
-        if(idx < predec_.size()) {
-            return predec_.at(idx);
-        } else if(predec_.size() != 0){
-            return predec_.at(predec_.size()-1);
-        } else {
-            throw std::invalid_argument("Invalid predecessor idx given to GetNext of class ilist_graph_node");
-        }
+    typename std::unordered_set<Elt *>::iterator GetSuccEnd() {
+        return succ_.end();
     }
 
-    void PushBackSucc(Elt *elt) {
-        succ_.push_back(elt);
+    typename std::unordered_set<Elt *>::iterator GetPredecBegin() {
+        return predec_.begin();
     }
 
-    void SetNext(Elt *elt, sztype idx) {
-        if(idx < succ_.size()) {
-            return succ_[idx];
-        } else {
-            throw std::invalid_argument("Invalid successor idx given to SetNext of class ilist_graph_node");
-        }
+    typename std::unordered_set<Elt *>::iterator GetPredecEnd() {
+        return predec_.end();
     }
 
-    void PushBackPredec(Elt *elt) {
-        predec_.push_back(elt);
+    typename std::unordered_set<Elt *>::const_iterator GetSuccBegin() const {
+        return succ_.begin();
     }
 
-    void SetPrev(Elt *elt, sztype idx) {
-        if(idx < predec_.size()) {
-            return predec_[idx];
-        } else {
-            throw std::invalid_argument("Invalid predecessor idx given to SetNext of class ilist_graph_node");
-        }
+    typename std::unordered_set<Elt *>::const_iterator GetSuccEnd() const {
+        return succ_.end();
     }
 
-    typename std::vector<Elt *>::size_type PredecSize() const {
+    typename std::unordered_set<Elt *>::const_iterator GetPredecBegin() const {
+        return predec_.begin();
+    }
+
+    typename std::unordered_set<Elt *>::const_iterator GetPredecEnd() const {
+        return predec_.end();
+    }
+
+    void AddSucc(Elt *elt) {
+        succ_.insert(elt);
+    }
+
+    void AddPredec(Elt *elt) {
+        predec_.insert(elt);
+    }
+
+    void RemoveSucc(typename std::unordered_set<Elt *>::iterator it) {
+        succ_.erase(it);
+    }
+
+    void RemovePredec(typename std::unordered_set<Elt *>::iterator it) {
+        predec_.erase(it);
+    }
+
+    typename std::unordered_set<Elt *>::iterator FindSucc(Elt *elt) {
+        return succ_.find(elt);
+    }
+
+    typename std::unordered_set<Elt *>::iterator FindPredec(Elt *elt) {
+        return predec_.find(elt);
+    }
+
+    typename std::unordered_set<Elt *>::size_type PredecSize() const {
         return predec_.size();
     }
 
-    typename std::vector<Elt *>::size_type SuccSize() const {
+    typename std::unordered_set<Elt *>::size_type SuccSize() const {
         return succ_.size();
     }
 
+    bool IsBBSucc(Elt *elt) {
+        return succ_.contains(elt);
+    }
+
+    bool IsBBPredec(Elt *elt) {
+        return predec_.contains(elt);
+    }
+
+    Elt *GetFirstSucc() {
+        if(succ_.size() < 1) {
+            return nullptr;
+        }
+        return *succ_.begin();
+    }
+
+    const Elt *GetFirstSucc() const {
+        if(succ_.size() < 1) {
+            return nullptr;
+        }
+        return *succ_.begin();
+    }
+
+    Elt *GetSecondSucc() {
+        if(succ_.size() < 2) {
+            return nullptr;
+        }
+
+        return *(++succ_.begin());
+    }
+
+    const Elt *GetSecondSucc() const {
+        if(succ_.size() < 2) {
+            return nullptr;
+        }
+
+        return *(++succ_.begin());
+    }
+
 protected:
-    std::vector<Elt *> predec_;
-    std::vector<Elt *> succ_;
+    std::unordered_set<Elt *> predec_;
+    std::unordered_set<Elt *> succ_;
 };
 
 #endif //JIT_AOT_IN_VM_ILIST_NODES_H

@@ -10,8 +10,8 @@ class IRGraph;
 class BasicBlock : public ilist_graph_node<BasicBlock> {
 public:
 
-    BasicBlock(IRGraph *graph = nullptr, const std::string &name = "", const InstructionBase *start_inst = nullptr);
-    BasicBlock(const BasicBlock &rhs) : BasicBlock(nullptr, rhs.name_, rhs.first_inst_) {}
+    BasicBlock(IRGraph *graph = nullptr, const std::string &name = "", InstructionBase *start_inst = nullptr);
+    BasicBlock(const BasicBlock &rhs);
 
     template <typename elt>
     class bb_iterator : std::iterator<std::bidirectional_iterator_tag,
@@ -78,7 +78,7 @@ public:
         return const_iterator();
     }
 
-    void AddInstBack(const InstructionBase *inst);
+    void ReplaceInstBack(InstructionBase *inst);
 
     const InstructionBase *GetFirstInst() const {
         return first_inst_;

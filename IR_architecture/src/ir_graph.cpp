@@ -4,8 +4,39 @@
 
 #include "ir_graph.h"
 
-IRGraph::IRGraph(const BasicBlock *root, IRFunction *func) : func_(func), root_(nullptr), inserter_cursor_(nullptr) {
+IRGraph::IRGraph(BasicBlock *root, IRFunction *func) : func_(func), root_(nullptr) {
     if(root != nullptr) {
+
+        // first we go around all the vertices of the graph using BFS algorithm and copy them
+        // ==================================================================================
+
+        std::unordered_set<BasicBlock*> explored_bbs;
+        std::queue<BasicBlock*> bbs_to_go_through;
+
+        bbs_to_go_through.push(root);
+        explored_bbs.insert(root);
+
+        while(!bbs_to_go_through.empty()) {
+            auto cur_bb = bbs_to_go_through.front();
+            bbs_to_go_through.pop();
+
+            bb_set_.insert(cur_bb);
+
+            for(auto it = cur_bb->GetSuccBegin(), end = cur_bb->GetSuccEnd()/*size_t idx = 0*/; it != end; ++it) {
+                if(!explored_bbs.contains(*it)) {
+                    bbs_to_go_through.push(*it);
+                    explored_bbs.insert(*it);
+                }
+            }
+        }
+
+        // ==================================================================================
+        root_ = root;
+    }
+}
+
+IRGraph::IRGraph(const IRGraph &rhs) {
+    if(rhs.root_ != nullptr) {
 
         // first we go around all the vertices of the graph using BFS algorithm and copy them
         // ==================================================================================
@@ -14,8 +45,8 @@ IRGraph::IRGraph(const BasicBlock *root, IRFunction *func) : func_(func), root_(
         std::unordered_set<const BasicBlock*> explored_old_bbs;
         std::queue<const BasicBlock*> bbs_to_copy;
 
-        bbs_to_copy.push(root);
-        explored_old_bbs.insert(root);
+        bbs_to_copy.push(rhs.root_);
+        explored_old_bbs.insert(rhs.root_);
 
         while(!bbs_to_copy.empty()) {
             auto old_bb = bbs_to_copy.front();
@@ -25,10 +56,10 @@ IRGraph::IRGraph(const BasicBlock *root, IRFunction *func) : func_(func), root_(
             old_to_new_map[old_bb] = new_bb;
             bb_set_.insert(new_bb);
 
-            for(size_t idx = 0; idx < old_bb->SuccSize(); ++idx) {
-                if(!explored_old_bbs.contains(old_bb->GetNext(idx))) {
-                    bbs_to_copy.push(old_bb->GetNext(idx));
-                    explored_old_bbs.insert(old_bb->GetNext(idx));
+            for(auto it = old_bb->GetSuccBegin(), end = old_bb->GetSuccEnd(); it != end; ++it) {
+                if(!explored_old_bbs.contains(*it)) {
+                    bbs_to_copy.push(*it);
+                    explored_old_bbs.insert(*it);
                 }
             }
         }
@@ -39,24 +70,24 @@ IRGraph::IRGraph(const BasicBlock *root, IRFunction *func) : func_(func), root_(
         // ==================================================================================
         explored_old_bbs.clear();
 
-        bbs_to_copy.push(root);
-        explored_old_bbs.insert(root);
+        bbs_to_copy.push(rhs.root_);
+        explored_old_bbs.insert(rhs.root_);
 
         while(!bbs_to_copy.empty()) {
             auto old_bb = bbs_to_copy.front();
             bbs_to_copy.pop();
 
             BasicBlock *new_bb = old_to_new_map.at(old_bb);
-            for(size_t idx = 0; idx < old_bb->PredecSize(); ++idx) {
-                BasicBlock *old_pred = old_bb->GetPrev(idx);
+            for(auto it = old_bb->GetPredecBegin(), end = old_bb->GetPredecEnd(); it != end; ++it) {
+                BasicBlock *old_pred = *it;
                 BasicBlock *new_pred = old_to_new_map.at(old_pred);
-                new_bb->PushBackPredec(new_pred);
+                new_bb->AddPredec(new_pred);
             }
 
-            for(size_t idx = 0; idx < old_bb->SuccSize(); ++idx) {
-                BasicBlock *old_succ = old_bb->GetNext(idx);
+            for(auto it = old_bb->GetSuccBegin(), end = old_bb->GetSuccEnd(); it != end; ++it) {
+                BasicBlock *old_succ = *it;
                 BasicBlock *new_succ = old_to_new_map.at(old_succ);
-                new_bb->PushBackSucc(new_succ);
+                new_bb->AddSucc(new_succ);
 
                 if(!explored_old_bbs.contains(old_succ)) {
                     bbs_to_copy.push(old_succ);
@@ -65,62 +96,33 @@ IRGraph::IRGraph(const BasicBlock *root, IRFunction *func) : func_(func), root_(
             }
         }
         // ==================================================================================
-        root_ = old_to_new_map.at(root);
-        inserter_cursor_ = root_;
+        root_ = old_to_new_map.at(rhs.root_);
     }
 }
 
-void IRGraph::CreateAndInsertBBBack(InstructionBase *start_instr, const std::string &label) {
+
+/*void IRGraph::CreateAndInsertBBBack(InstructionBase *start_instr, const std::string &label) {
     auto *new_bb = new BasicBlock(this, label, start_instr);
 
-    root_->PushBackSucc(new_bb);
-    new_bb->PushBackPredec(root_);
-}
+    root_->AddSucc(new_bb);
+    new_bb->AddPredec(root_);
+}*/
 
 bool IRGraph::IsBBsConnected(BasicBlock *bb, BasicBlock *bb_succ) const {
-    for(size_t idx = 0; idx < bb->SuccSize(); ++idx) {
-        if(bb->GetNext(idx) == bb_succ)
-            return true;
-    }
-
-    return false;
-}
-
-void IRGraph::PushBackSucc(BasicBlock *bb) {
-    if(inserter_cursor_->SuccSize() >= 2) {
-        throw std::invalid_argument("Trying to third successor to basic block at ir_graph");
-    }
-
-    if(bb_set_.contains(bb)) {
-        inserter_cursor_->PushBackSucc(bb);
-    } else {
-        auto new_bb = bb->clone();
-        bb_set_.insert(new_bb);
-        inserter_cursor_->PushBackSucc(new_bb);
-
-    }
-}
-
-void IRGraph::PushBackPred(BasicBlock *bb) {
-    if(bb_set_.contains(bb)) {
-        inserter_cursor_->PushBackPredec(bb);
-    } else {
-        auto new_bb = bb->clone();
-        bb_set_.insert(new_bb);
-        inserter_cursor_->PushBackPredec(new_bb);
-    }
+    return bb->IsBBSucc(bb_succ);
 }
 
 void IRGraph::AddBBToBegin(BasicBlock *bb) {
     if(root_ == nullptr) {
-        root_ = bb->clone();
+        root_ = bb;
         bb_set_.insert(root_);
         return;
     }
 
-    auto new_root = bb->clone();
-    new_root->PushBackSucc(root_);
-    root_->PushBackPredec(new_root);
-    root_ = new_root;
+    bb->AddSucc(root_);
+    root_->AddPredec(bb);
+    root_ = bb;
     bb_set_.insert(root_);
 }
+
+

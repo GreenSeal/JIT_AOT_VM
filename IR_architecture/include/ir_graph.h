@@ -17,15 +17,14 @@ class RuntimeInfo {};
 class BackendInfo {};
 class OptimisationsInfo {};
 
-
 class IRGraph : public RuntimeInfo, BackendInfo, OptimisationsInfo {
 public:
     using sztype = size_t;
 
-    IRGraph(const BasicBlock *root = nullptr, IRFunction *func = nullptr);
-    IRGraph(const IRGraph &rhs) : IRGraph(rhs.root_)  {}
+    IRGraph(BasicBlock *root = nullptr, IRFunction *func = nullptr);
+    IRGraph(const IRGraph &rhs);
 
-    void CreateAndInsertBBBack(InstructionBase *start_instr, const std::string &label = "");
+    // void CreateAndInsertBBBack(InstructionBase *start_instr, const std::string &label = "");
 
     std::unique_ptr<BinaryInstr> CreateMoviU64(IReg::reg_t reg_type, IReg::idx_type reg_idx, uint64_t imm_value) {
         return std::unique_ptr<BinaryInstr>(new BinaryInstr(new IReg(reg_type, reg_idx, prim_type::u64),
@@ -78,38 +77,66 @@ public:
     }
 
     bool IsBBsConnected(BasicBlock *bb, BasicBlock *bb_succ) const;
+    void AddBBToBegin(BasicBlock *bb);
 
     bool IsBBInGraph(BasicBlock *bb) {
         return bb_set_.contains(bb);
     }
 
-    void PushBackSucc(BasicBlock *bb);
-    void PushBackPred(BasicBlock *bb);
-    void AddBBToBegin(BasicBlock *bb);
-
-    BasicBlock *MoveInserterNext(size_t idx) {
-        inserter_cursor_ = inserter_cursor_->GetNext(idx);
-        return inserter_cursor_;
+    void AddBBInGraph(BasicBlock *bb) {
+        bb_set_.insert(bb);
     }
 
-    BasicBlock *MoveInserterPrev(size_t idx) {
-        inserter_cursor_ = inserter_cursor_->GetPrev(idx);
-        return inserter_cursor_;
+    void AddEdge(BasicBlock *from, BasicBlock *to) {
+        if(!IsBBInGraph(from) || !IsBBInGraph(to)) {
+            throw std::invalid_argument("Can't add an edge between vertices that don't exist in the graph");
+        }
+
+        if(from->SuccSize() == 2) {
+            throw std::invalid_argument("Trying to add third successor at AddEdge method");
+        }
+
+        if(from->SuccSize() == 1 && *(from->GetSuccBegin()) == to) {
+            throw std::invalid_argument("Trying to add existing edge at AddEdge method");
+        }
+
+        from->AddSucc(to);
+        to->AddPredec(from);
     }
 
-    BasicBlock *GetInsertCursor() const {
-        return inserter_cursor_;
+    void RemoveEdge(BasicBlock *from, BasicBlock *to) {
+        if(!IsBBInGraph(from) || !IsBBInGraph(to)) {
+            throw std::invalid_argument("Can't remove an edge between vertices that don't exist in the graph");
+        }
+
+        if(from->SuccSize() == 0) {
+            throw std::invalid_argument("Trying to remove non-existing edge at RemoveEdge method");
+        }
+
+
+        for(auto it = from->GetSuccBegin(), end = from->GetSuccEnd(); it != end; ++it) {
+            if(*it == to) {
+                from->RemoveSucc(it);
+                to->RemovePredec(to->FindPredec(from));
+                return;
+            }
+        }
+
+        throw std::invalid_argument("Trying to remove non-existing edge at RemoveEdge method");
     }
 
-    void ResetInsertCursor() {
-        inserter_cursor_ = root_;
+    BasicBlock *GetRoot() {
+        return root_;
+    }
+
+    const BasicBlock *GetRoot() const {
+        return root_;
     }
 
 protected:
     IRFunction *func_;
     std::unordered_set<BasicBlock*> bb_set_;
     BasicBlock *root_;
-    BasicBlock *inserter_cursor_;
 };
 
 #endif // VM_IR_GRAPH_H

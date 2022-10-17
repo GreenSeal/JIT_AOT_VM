@@ -105,6 +105,7 @@ TEST(ir_architecture, instructions) {
 TEST(ir_architecture, basic_block) {
     auto empty_bb = new BasicBlock();
     EXPECT_EQ(empty_bb->begin(), empty_bb->end());
+    delete empty_bb;
 
     auto cmp_inst = new BinaryInstr(new IReg(IReg::reg_t::v, 1, prim_type::u64),
                                     new IReg(IReg::reg_t::v, 2, prim_type::u64),
@@ -122,10 +123,10 @@ TEST(ir_architecture, basic_block) {
 
     EXPECT_EQ(bb_pushback->GetBBName(), "loop");
 
-    bb_pushback->AddInstBack(cmp_inst);
-    bb_pushback->AddInstBack(ja_inst);
-    bb_pushback->AddInstBack(mul_inst);
-    bb_pushback->AddInstBack(jmp_inst);
+    bb_pushback->ReplaceInstBack(cmp_inst);
+    bb_pushback->ReplaceInstBack(ja_inst);
+    bb_pushback->ReplaceInstBack(mul_inst);
+    bb_pushback->ReplaceInstBack(jmp_inst);
 
     auto bb_pb_it = bb_pushback->begin();
     EXPECT_EQ(dynamic_cast<BinaryInstr *>(*bb_pb_it)->GetType(), inst_t::cmp_u64);
@@ -154,16 +155,37 @@ TEST(ir_architecture, basic_block) {
 // =====================================================================================================
 
 // =============== Testing forward iteration of bb, created through instruction chain ==================
-    cmp_inst->SetNext(ja_inst);
-    ja_inst->SetPrev(cmp_inst);
-    ja_inst->SetNext(mul_inst);
-    mul_inst->SetPrev(ja_inst);
-    mul_inst->SetNext(jmp_inst);
-    jmp_inst->SetPrev(mul_inst);
+    auto cmp_inst_clone = cmp_inst->clone();
+    auto ja_inst_clone = ja_inst->clone();
+    auto mul_inst_clone = mul_inst->clone();
+    auto jmp_inst_clone = jmp_inst->clone();
 
-    auto bb = new BasicBlock(nullptr, "loop", cmp_inst);
+    cmp_inst_clone->SetNext(ja_inst_clone);
+    ja_inst_clone->SetPrev(cmp_inst_clone);
+    ja_inst_clone->SetNext(mul_inst_clone);
+    mul_inst_clone->SetPrev(ja_inst_clone);
+    mul_inst_clone->SetNext(jmp_inst_clone);
+    jmp_inst_clone->SetPrev(mul_inst_clone);
+
+    auto bb = new BasicBlock(nullptr, "loop", cmp_inst_clone);
 
     auto bb_it = bb->begin();
+    if(dynamic_cast<UnaryInstr*>(*bb_it) == nullptr) {
+        std::cout << "UnaryInst" << std::endl;
+    }
+
+    if(dynamic_cast<BinaryInstr*>(*bb_it) == nullptr) {
+        std::cout << "BinaryInst" << std::endl;
+    }
+
+    if(dynamic_cast<TernaryInstr*>(*bb_it) == nullptr) {
+        std::cout << "TernaryInst" << std::endl;
+    }
+
+    if(dynamic_cast<InstructionBase*>(*bb_it) == nullptr) {
+        std::cout << "InstructionBase" << std::endl;
+    }
+
     EXPECT_EQ(dynamic_cast<BinaryInstr *>(*bb_it)->GetType(), inst_t::cmp_u64);
     EXPECT_EQ(dynamic_cast<const IReg *>(dynamic_cast<BinaryInstr *>(*bb_it)->GetOpnd(0))->GetRegIdx(),
               1);
@@ -226,13 +248,9 @@ TEST(ir_architecture, basic_block) {
     EXPECT_EQ(bb_clone_it, bb_clone->end());
 // =====================================================================================================
 
-    delete empty_bb;
     delete bb_pushback;
     delete bb;
-    delete cmp_inst;
-    delete ja_inst;
-    delete mul_inst;
-    delete jmp_inst;
+    delete bb_clone;
 }
 
 TEST(ir_architecture, ir_graph) {
@@ -244,9 +262,10 @@ TEST(ir_architecture, ir_graph) {
     auto cast_inst = new BinaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64),
                                       new IReg(IReg::reg_t::a, 0, prim_type::u32), inst_t::u32tou64);
     auto start_bb = new BasicBlock(nullptr, "start");
-    start_bb->AddInstBack(movi_inst1);
-    start_bb->AddInstBack(movi_inst2);
-    start_bb->AddInstBack(cast_inst);
+
+    start_bb->ReplaceInstBack(movi_inst1);
+    start_bb->ReplaceInstBack(movi_inst2);
+    start_bb->ReplaceInstBack(cast_inst);
 
     auto cmp_inst = new BinaryInstr(new IReg(IReg::reg_t::v, 1, prim_type::u64),
                                     new IReg(IReg::reg_t::v, 2, prim_type::u64),
@@ -260,43 +279,43 @@ TEST(ir_architecture, ir_graph) {
 
     auto loop_bb1 = new BasicBlock(nullptr, "loop1");
     auto loop_bb2 = new BasicBlock(nullptr, "loop2");
-    loop_bb1->AddInstBack(cmp_inst);
-    loop_bb1->AddInstBack(ja_inst);
-    loop_bb2->AddInstBack(mul_inst);
-    loop_bb2->AddInstBack(jmp_inst);
+
+    loop_bb1->ReplaceInstBack(cmp_inst);
+    loop_bb1->ReplaceInstBack(ja_inst);
+    loop_bb2->ReplaceInstBack(mul_inst);
+    loop_bb2->ReplaceInstBack(jmp_inst);
 
     auto ret_inst = new UnaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64), inst_t::ret_u64);
 
     auto done_bb = new BasicBlock(nullptr, "done");
-    done_bb->AddInstBack(ret_inst);
+    done_bb->ReplaceInstBack(ret_inst);
 // ========================== Testing IRGraph creation with ready CFG ========================
-    start_bb->PushBackSucc(loop_bb1);
-    loop_bb1->PushBackPredec(loop_bb2);
-    loop_bb1->PushBackPredec(start_bb);
-    loop_bb1->PushBackSucc(loop_bb2);
-    loop_bb1->PushBackSucc(done_bb);
-    loop_bb2->PushBackPredec(loop_bb1);
-    loop_bb2->PushBackSucc(loop_bb1);
-    loop_bb2->PushBackSucc(done_bb);
-    done_bb->PushBackPredec(loop_bb2);
-    done_bb->PushBackPredec(loop_bb1);
+    start_bb->AddSucc(loop_bb1);
+    loop_bb1->AddPredec(loop_bb2);
+    loop_bb1->AddPredec(start_bb);
+    loop_bb1->AddSucc(loop_bb2);
+    loop_bb1->AddSucc(done_bb);
+    loop_bb2->AddPredec(loop_bb1);
+    loop_bb2->AddSucc(loop_bb1);
+    loop_bb2->AddSucc(done_bb);
+    done_bb->AddPredec(loop_bb2);
+    done_bb->AddPredec(loop_bb1);
 
     auto ir_graph = new IRGraph(start_bb);
-    auto first_bb = ir_graph->GetInsertCursor();
-    auto second_bb = ir_graph->MoveInserterNext(0);
-    auto third_bb = ir_graph->MoveInserterNext(0);
-    ir_graph->MoveInserterPrev(0);
-    auto forth_bb = ir_graph->MoveInserterNext(1);
+    auto first_bb = ir_graph->GetRoot();
+    auto second_bb = first_bb->GetFirstSucc();
+    auto third_bb = second_bb->GetSecondSucc();
+    auto forth_bb = second_bb->GetFirstSucc();
 
     EXPECT_EQ(ir_graph->IsBBInGraph(first_bb), true);
     EXPECT_EQ(ir_graph->IsBBInGraph(second_bb), true);
     EXPECT_EQ(ir_graph->IsBBInGraph(third_bb), true);
     EXPECT_EQ(ir_graph->IsBBInGraph(forth_bb), true);
 
-    EXPECT_EQ(ir_graph->IsBBInGraph(start_bb), false);
-    EXPECT_EQ(ir_graph->IsBBInGraph(loop_bb1), false);
-    EXPECT_EQ(ir_graph->IsBBInGraph(loop_bb2), false);
-    EXPECT_EQ(ir_graph->IsBBInGraph(done_bb), false);
+    EXPECT_EQ(ir_graph->IsBBInGraph(start_bb), true);
+    EXPECT_EQ(ir_graph->IsBBInGraph(loop_bb1), true);
+    EXPECT_EQ(ir_graph->IsBBInGraph(loop_bb2), true);
+    EXPECT_EQ(ir_graph->IsBBInGraph(done_bb), true);
 
     EXPECT_EQ(first_bb->GetBBName(), "start");
     EXPECT_EQ(second_bb->GetBBName(), "loop1");
@@ -318,31 +337,33 @@ TEST(ir_architecture, ir_graph) {
 
 // =========== Testing IRGraph creation using inserter cursor and pushing bbs back ===========
 
+    auto start_bb_clone = start_bb->clone();
+    auto loop_bb1_clone = loop_bb1->clone();
+    auto loop_bb2_clone = loop_bb2->clone();
+    auto done_bb_clone = done_bb->clone();
+
     auto ir_graph_pushback = new IRGraph();
 
-    ir_graph_pushback->AddBBToBegin(start_bb);
-    ir_graph_pushback->ResetInsertCursor();
-    ir_graph_pushback->PushBackSucc(loop_bb1);
-    auto new_start_bb = ir_graph_pushback->GetInsertCursor();
-    auto new_loop_bb1 = ir_graph_pushback->MoveInserterNext(0);
-    ir_graph_pushback->PushBackPred(new_start_bb);
-    ir_graph_pushback->PushBackSucc(loop_bb2);
-    ir_graph_pushback->PushBackSucc(done_bb);
-    auto new_loop_bb2 = ir_graph_pushback->MoveInserterNext(0);
-    ir_graph_pushback->PushBackPred(new_loop_bb1);
-    ir_graph_pushback->PushBackSucc(new_loop_bb1);
-    ir_graph_pushback->MoveInserterPrev(0);
-    ir_graph_pushback->PushBackPred(new_loop_bb2);
-    auto new_done_bb = ir_graph_pushback->MoveInserterNext(1);
-    ir_graph_pushback->PushBackPred(new_loop_bb2);
-    ir_graph_pushback->PushBackPred(new_loop_bb1);
-    ir_graph_pushback->MoveInserterPrev(0);
-    ir_graph_pushback->PushBackSucc(new_done_bb);
+    ir_graph_pushback->AddBBToBegin(start_bb_clone);
+    ir_graph_pushback->AddBBInGraph(loop_bb1_clone);
+    ir_graph_pushback->AddBBInGraph(loop_bb2_clone);
+    ir_graph_pushback->AddBBInGraph(done_bb_clone);
+    auto root = ir_graph_pushback->GetRoot();
+    root->AddSucc(loop_bb1_clone);
+    loop_bb1_clone->AddPredec(root);
+    loop_bb1_clone->AddSucc(loop_bb2_clone);
+    loop_bb2_clone->AddPredec(loop_bb1_clone);
+    loop_bb1_clone->AddSucc(done_bb_clone);
+    done_bb_clone->AddPredec(loop_bb1_clone);
+    loop_bb2_clone->AddSucc(loop_bb1_clone);
+    loop_bb1_clone->AddPredec(loop_bb2_clone);
+    loop_bb2_clone->AddSucc(done_bb_clone);
+    done_bb_clone->AddPredec(loop_bb2_clone);
 
-    EXPECT_EQ(ir_graph_pushback->IsBBInGraph(new_start_bb), true);
-    EXPECT_EQ(ir_graph_pushback->IsBBInGraph(new_loop_bb1), true);
-    EXPECT_EQ(ir_graph_pushback->IsBBInGraph(new_loop_bb2), true);
-    EXPECT_EQ(ir_graph_pushback->IsBBInGraph(new_done_bb), true);
+    EXPECT_EQ(ir_graph_pushback->IsBBInGraph(start_bb_clone), true);
+    EXPECT_EQ(ir_graph_pushback->IsBBInGraph(loop_bb1_clone), true);
+    EXPECT_EQ(ir_graph_pushback->IsBBInGraph(loop_bb2_clone), true);
+    EXPECT_EQ(ir_graph_pushback->IsBBInGraph(done_bb_clone), true);
 
     EXPECT_EQ(ir_graph_pushback->IsBBInGraph(start_bb), false);
     EXPECT_EQ(ir_graph_pushback->IsBBInGraph(loop_bb1), false);
@@ -354,19 +375,21 @@ TEST(ir_architecture, ir_graph) {
     EXPECT_EQ(third_bb->GetBBName(), "loop2");
     EXPECT_EQ(forth_bb->GetBBName(), "done");
 
-    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(new_start_bb, new_loop_bb1), true);
-    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(new_loop_bb1, new_loop_bb2), true);
-    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(new_loop_bb1, new_done_bb), true);
-    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(new_loop_bb2, new_loop_bb1), true);
-    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(new_loop_bb2, new_done_bb), true);
+    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(start_bb_clone, loop_bb1_clone), true);
+    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(loop_bb1_clone, loop_bb2_clone), true);
+    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(loop_bb1_clone, done_bb_clone), true);
+    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(loop_bb2_clone, loop_bb1_clone), true);
+    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(loop_bb2_clone, done_bb_clone), true);
 
-    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(new_start_bb, new_loop_bb2), false);
-    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(new_loop_bb1, new_start_bb), false);
-    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(new_done_bb, new_loop_bb2), false);
-    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(new_done_bb, new_loop_bb1), false);
-    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(new_done_bb, new_start_bb), false);
+    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(start_bb_clone, loop_bb2_clone), false);
+    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(loop_bb1_clone, start_bb_clone), false);
+    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(done_bb_clone, loop_bb2_clone), false);
+    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(done_bb_clone, loop_bb1_clone), false);
+    EXPECT_EQ(ir_graph_pushback->IsBBsConnected(done_bb_clone, start_bb_clone), false);
 // ===========================================================================================
 
+    delete ir_graph;
+    delete ir_graph_pushback;
 }
 
 TEST(ir_architecture, ir_function) {
@@ -377,9 +400,9 @@ TEST(ir_architecture, ir_function) {
     auto cast_inst = new BinaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64),
                                      new IReg(IReg::reg_t::a, 0, prim_type::u32), inst_t::u32tou64);
     auto start_bb = new BasicBlock(nullptr, "start");
-    start_bb->AddInstBack(movi_inst1);
-    start_bb->AddInstBack(movi_inst2);
-    start_bb->AddInstBack(cast_inst);
+    start_bb->ReplaceInstBack(movi_inst1);
+    start_bb->ReplaceInstBack(movi_inst2);
+    start_bb->ReplaceInstBack(cast_inst);
 
     auto cmp_inst = new BinaryInstr(new IReg(IReg::reg_t::v, 1, prim_type::u64),
                                     new IReg(IReg::reg_t::v, 2, prim_type::u64),
@@ -393,34 +416,34 @@ TEST(ir_architecture, ir_function) {
 
     auto loop_bb1 = new BasicBlock(nullptr, "loop1");
     auto loop_bb2 = new BasicBlock(nullptr, "loop2");
-    loop_bb1->AddInstBack(cmp_inst);
-    loop_bb1->AddInstBack(ja_inst);
-    loop_bb2->AddInstBack(mul_inst);
-    loop_bb2->AddInstBack(jmp_inst);
+    loop_bb1->ReplaceInstBack(cmp_inst);
+    loop_bb1->ReplaceInstBack(ja_inst);
+    loop_bb2->ReplaceInstBack(mul_inst);
+    loop_bb2->ReplaceInstBack(jmp_inst);
 
     auto ret_inst = new UnaryInstr(new IReg(IReg::reg_t::v, 0, prim_type::u64), inst_t::ret_u64);
 
     auto done_bb = new BasicBlock(nullptr, "done");
-    done_bb->AddInstBack(ret_inst);
+    done_bb->ReplaceInstBack(ret_inst);
 
-    start_bb->PushBackSucc(loop_bb1);
-    loop_bb1->PushBackPredec(loop_bb2);
-    loop_bb1->PushBackPredec(start_bb);
-    loop_bb1->PushBackSucc(loop_bb2);
-    loop_bb1->PushBackSucc(done_bb);
-    loop_bb2->PushBackPredec(loop_bb1);
-    loop_bb2->PushBackSucc(loop_bb1);
-    loop_bb2->PushBackSucc(done_bb);
-    done_bb->PushBackPredec(loop_bb2);
-    done_bb->PushBackPredec(loop_bb1);
+    start_bb->AddSucc(loop_bb1);
+    loop_bb1->AddPredec(loop_bb2);
+    loop_bb1->AddPredec(start_bb);
+    loop_bb1->AddSucc(loop_bb2);
+    loop_bb1->AddSucc(done_bb);
+    loop_bb2->AddPredec(loop_bb1);
+    loop_bb2->AddSucc(loop_bb1);
+    loop_bb2->AddSucc(done_bb);
+    done_bb->AddPredec(loop_bb2);
+    done_bb->AddPredec(loop_bb1);
 
     OperandBase *arg = new IReg(IReg::reg_t::a, 0, prim_type::u32);
 
     IRFunction func("fact", std::vector{arg}, prim_type::u64, start_bb);
-    auto first_bb = func.GetInsertCursor();
-    auto second_bb = func.MoveInserterNext(0);
-    auto third_bb = func.MoveInserterNext(0);
-    auto forth_bb = func.MoveInserterNext(1);
+    auto first_bb = func.GetRoot();
+    auto second_bb = first_bb->GetFirstSucc();
+    auto third_bb = second_bb->GetSecondSucc();
+    auto forth_bb = second_bb->GetFirstSucc();
 
     EXPECT_EQ(func.IsBBsConnected(first_bb, second_bb), true);
     EXPECT_EQ(func.IsBBsConnected(second_bb, third_bb), true);

@@ -4,14 +4,29 @@
 
 #include "basic_block.h"
 
-BasicBlock::BasicBlock(IRGraph *graph, const std::string &name, const InstructionBase *start_inst) :
+BasicBlock::BasicBlock(IRGraph *graph, const std::string &name, InstructionBase *start_inst) :
                         graph_(graph), name_(name) {
     if(start_inst == nullptr) {
         first_inst_ = nullptr;
         last_inst_ = nullptr;
         return;
     }
-    const InstructionBase *cur_inst = start_inst;
+
+    first_inst_ = start_inst;
+    while(start_inst->GetNext() != nullptr) {
+        start_inst = start_inst->GetNext();
+    }
+
+    last_inst_ = start_inst;
+}
+
+BasicBlock::BasicBlock(const BasicBlock &rhs) {
+    if(rhs.first_inst_ == nullptr) {
+        first_inst_ = nullptr;
+        last_inst_ = nullptr;
+        return;
+    }
+    const InstructionBase *cur_inst = rhs.first_inst_;
     InstructionBase *prev_inst = nullptr;
     while(cur_inst != nullptr) {
         InstructionBase *new_instr = cur_inst->clone();
@@ -19,7 +34,7 @@ BasicBlock::BasicBlock(IRGraph *graph, const std::string &name, const Instructio
         if(prev_inst != nullptr) {
             prev_inst->SetNext(new_instr);
         }
-        if(cur_inst == start_inst) {
+        if(cur_inst == rhs.first_inst_) {
             first_inst_ = new_instr;
         }
 
@@ -28,22 +43,22 @@ BasicBlock::BasicBlock(IRGraph *graph, const std::string &name, const Instructio
     }
     prev_inst->SetNext(nullptr);
     last_inst_ = prev_inst;
+
+    succ_.clear();
+    predec_.clear();
 }
 
-void BasicBlock::AddInstBack(const InstructionBase *inst) {
+void BasicBlock::ReplaceInstBack(InstructionBase *inst) {
     if(inst == nullptr) {
         throw std::invalid_argument("Nullptr given in AddInstBack method of BasicBlock class");
     }
 
-    InstructionBase *new_inst = inst->clone();
-    new_inst->SetPrev(nullptr);
-    new_inst->SetNext(nullptr);
     if(first_inst_ == nullptr) {
-        first_inst_ = last_inst_ = new_inst;
+        first_inst_ = last_inst_ = inst;
     } else {
-        last_inst_->SetNext(new_inst);
-        new_inst->SetPrev(last_inst_);
-        last_inst_ = new_inst;
+        last_inst_->SetNext(inst);
+        inst->SetPrev(last_inst_);
+        last_inst_ = inst;
     }
 }
 
