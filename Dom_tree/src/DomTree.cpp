@@ -4,14 +4,14 @@
 
 #include "DomTree.h"
 
-void DomTree::RunStep1(const IRGraph& graph) {
+void DomTree::RunStep1() {
     size_t cur_idx = 0;
     BasicBlockInfo root_info_(0, 0);
     cur_idx++;
-    vertexes.push_back(graph.GetRoot());
-    bbs_info_.insert({graph.GetRoot(), std::move(root_info_)});
-    for(auto it = graph.GetRoot()->GetSuccBegin(), end = graph.GetRoot()->GetSuccEnd(); it != end; ++it) {
-        DFS(*it, graph.GetRoot(), cur_idx);
+    vertexes.push_back(graph_.GetRoot());
+    bbs_info_.insert({graph_.GetRoot(), std::move(root_info_)});
+    for(auto it = graph_.GetRoot()->GetSuccBegin(), end = graph_.GetRoot()->GetSuccEnd(); it != end; ++it) {
+        DFS(*it, graph_.GetRoot(), cur_idx);
     }
 }
 
@@ -43,7 +43,7 @@ void DomTree::RunStep2AndStep3() {
             }
         }
 
-        bbs_info_.at(vertexes.at(bbs_info_.at(*it).GetSemi())).AddVToBucket(w);
+        bbs_info_.at(vertexes.at(bbs_info_.at(w).GetSemi())).AddVToBucket(w);
         Link(bbs_info_.at(w).GetParent(), w);
         auto w_parent_info = bbs_info_.at(bbs_info_.at(w).GetParent());
         for(auto parent_it = w_parent_info.bucket_begin(), end = w_parent_info.bucket_end(); parent_it != end; ++parent_it) {
@@ -82,7 +82,7 @@ void DomTree::Link(const BasicBlock *v_parent, const BasicBlock *v) {
 void DomTree::Compress(const BasicBlock *v) {
     if(bbs_info_.at(bbs_info_.at(v).GetAncestor()).GetAncestor() != nullptr) {
         Compress(bbs_info_.at(v).GetAncestor());
-        if(bbs_info_.at(bbs_info_.at(bbs_info_.at(v).GetAncestor()).GetLabel()).GetId() >
+        if(bbs_info_.at(bbs_info_.at(bbs_info_.at(v).GetAncestor()).GetLabel()).GetSemi() >
             bbs_info_.at(bbs_info_.at(v).GetLabel()).GetSemi()) {
             const BasicBlock *v_label = bbs_info_.at(bbs_info_.at(v).GetAncestor()).GetLabel();
             bbs_info_.at(v).SetLabel(v_label);
