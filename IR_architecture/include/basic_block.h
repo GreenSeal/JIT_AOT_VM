@@ -103,6 +103,35 @@ public:
         return graph_;
     }
 
+    void SetIdom(BasicBlock *idom) {
+        idom_ = idom;
+    }
+
+    BasicBlock *GetIdom() {
+        return idom_;
+    }
+
+    void PushBackDominatedV(BasicBlock *bb) {
+        dominated_bbs_.push_back(bb);
+    }
+
+    auto GetDominatedBegin() {
+        return dominated_bbs_.begin();
+    }
+
+    auto GetDominatedEnd() {
+        return dominated_bbs_.end();
+    }
+
+    bool IsDominated(BasicBlock *bb) {
+        for(auto &&dominated_bb : dominated_bbs_) {
+            if(dominated_bb == bb) {
+                return true;
+            }
+        }
+
+        return false;
+    }
     /*ideas: Insertion in any place of bb
              Instruction removing
              */
@@ -124,6 +153,9 @@ protected:
     InstructionBase *first_inst_;
     InstructionBase *last_inst_;
     std::string name_;
+
+    std::vector<BasicBlock *> dominated_bbs_;
+    BasicBlock *idom_;
 };
 
 #endif //JIT_AOT_IN_VM_BASIC_BLOCK_H

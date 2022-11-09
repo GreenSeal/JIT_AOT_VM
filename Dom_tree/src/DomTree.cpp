@@ -8,10 +8,10 @@ void DomTree::RunStep1() {
     size_t cur_idx = 0;
     BasicBlockInfo root_info_(0, 0);
     cur_idx++;
-    vertexes.push_back(graph_.GetRoot());
-    bbs_info_.insert({graph_.GetRoot(), std::move(root_info_)});
-    for(auto it = graph_.GetRoot()->GetSuccBegin(), end = graph_.GetRoot()->GetSuccEnd(); it != end; ++it) {
-        DFS(*it, graph_.GetRoot(), cur_idx);
+    vertexes.push_back(graph_->GetRoot());
+    bbs_info_.insert({graph_->GetRoot(), std::move(root_info_)});
+    for(auto it = graph_->GetRoot()->GetSuccBegin(), end = graph_->GetRoot()->GetSuccEnd(); it != end; ++it) {
+        DFS(*it, graph_->GetRoot(), cur_idx);
     }
 }
 
@@ -29,28 +29,29 @@ void DomTree::DFS(const BasicBlock *v, const BasicBlock *parent, size_t &cur_idx
 }
 
 void DomTree::RunStep2AndStep3() {
-    for(auto it = vertexes.begin(), end = vertexes.end(); it != end; ++it) {
-        bbs_info_.at(*it).SetAncestor(nullptr);
-        bbs_info_.at(*it).SetLabel(*it);
+    for(auto &&vertex : vertexes) {
+        bbs_info_.at(vertex).SetAncestor(nullptr);
+        bbs_info_.at(vertex).SetLabel(vertex);
     }
 
     for(auto it = vertexes.rbegin(), end = --vertexes.rend(); it != end; ++it) {
         auto w = *it;
-        for(auto pred_it = w->GetPredecBegin(), end = w->GetPredecEnd(); pred_it != end; ++pred_it) {
+        for(auto pred_it = w->GetPredecBegin(), pred_end = w->GetPredecEnd(); pred_it != pred_end; ++pred_it) {
             const BasicBlock *u = Eval(*pred_it);
             if(bbs_info_.at(u).GetSemi() < bbs_info_.at(w).GetSemi()) {
                 bbs_info_.at(w).SetSemi(bbs_info_.at(u).GetSemi());
             }
         }
 
-        bbs_info_.at(vertexes.at(bbs_info_.at(w).GetSemi())).AddVToBucket(w);
+        bbs_info_.at(vertexes.at(bbs_info_.at(w).GetSemi())).PushBackToBucket(w);
         Link(bbs_info_.at(w).GetParent(), w);
         auto w_parent_info = bbs_info_.at(bbs_info_.at(w).GetParent());
-        for(auto parent_it = w_parent_info.bucket_begin(), end = w_parent_info.bucket_end(); parent_it != end; ++parent_it) {
-            w_parent_info.EraseVFromBucket(*parent_it);
-            const BasicBlock *u = Eval(*parent_it);
-            const BasicBlock *dom = bbs_info_.at(u).GetSemi() < bbs_info_.at(*parent_it).GetSemi() ? u : bbs_info_.at(w).GetParent();
-            bbs_info_.at(*parent_it).SetDom(dom);
+        while(!w_parent_info.IsBucketEmpty()) {
+            const BasicBlock *last_v = w_parent_info.GetLastInBucket();
+            const BasicBlock *u = Eval(last_v);
+            const BasicBlock *dom = bbs_info_.at(u).GetSemi() < bbs_info_.at(last_v).GetSemi() ? u : bbs_info_.at(w).GetParent();
+            bbs_info_.at(last_v).SetDom(dom);
+            w_parent_info.PopBackFromBucket();
         }
     }
 }
@@ -63,7 +64,7 @@ void DomTree::RunStep4() {
             bbs_info_.at(w).SetDom(dom);
         }
     }
-    bbs_info_.at(root_).SetDom(nullptr);
+    bbs_info_.at(graph_->GetRoot()).SetDom(nullptr);
 }
 
 const BasicBlock *DomTree::Eval(const BasicBlock *v) {
@@ -82,12 +83,23 @@ void DomTree::Link(const BasicBlock *v_parent, const BasicBlock *v) {
 void DomTree::Compress(const BasicBlock *v) {
     if(bbs_info_.at(bbs_info_.at(v).GetAncestor()).GetAncestor() != nullptr) {
         Compress(bbs_info_.at(v).GetAncestor());
-        if(bbs_info_.at(bbs_info_.at(bbs_info_.at(v).GetAncestor()).GetLabel()).GetSemi() >
+        if(bbs_info_.at(bbs_info_.at(bbs_info_.at(v).GetAncestor()).GetLabel()).GetSemi() <
             bbs_info_.at(bbs_info_.at(v).GetLabel()).GetSemi()) {
             const BasicBlock *v_label = bbs_info_.at(bbs_info_.at(v).GetAncestor()).GetLabel();
             bbs_info_.at(v).SetLabel(v_label);
         }
         const BasicBlock *v_ancestor = bbs_info_.at(bbs_info_.at(v).GetAncestor()).GetAncestor();
         bbs_info_.at(v).SetAncestor(v_ancestor);
+    }
+}
+
+void DomTree::BuildDomTree() {
+    for(auto &&v : vertexes) {
+        BasicBlock *non_const_v = const_cast<BasicBlock*>(v);
+        BasicBlock *idom = const_cast<BasicBlock*>(bbs_info_.at(v).GetDom());
+        non_const_v->SetIdom(idom);
+        if(idom != nullptr) {
+            idom->PushBackDominatedV(non_const_v);
+        }
     }
 }

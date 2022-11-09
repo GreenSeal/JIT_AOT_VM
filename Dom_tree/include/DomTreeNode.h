@@ -60,20 +60,21 @@ public:
         return ancestor_;
     }
 
-    void AddVToBucket(const BasicBlock *v) {
-        bucket_.insert(v);
+    void PushBackToBucket(const BasicBlock *v) {
+        bucket_.push_back(v);
     }
-    void EraseVFromBucket(const BasicBlock *v) {
-        bucket_.erase(v);
-    }
-
-    auto bucket_begin() {
-        return bucket_.begin();
+    void PopBackFromBucket() {
+        bucket_.pop_back();
     }
 
-    auto bucket_end() {
-        return bucket_.end();
+    const BasicBlock *GetLastInBucket() {
+        return bucket_[bucket_.size()-1];
     }
+
+    bool IsBucketEmpty() {
+        return bucket_.empty();
+    }
+
 private:
     const BasicBlock *dom_;
     const BasicBlock *parent_;
@@ -81,7 +82,7 @@ private:
     size_t semi_;
     const BasicBlock *label_;
     const BasicBlock *ancestor_;
-    std::unordered_set<const BasicBlock*> bucket_;
+    std::vector<const BasicBlock*> bucket_;
 
 
 };

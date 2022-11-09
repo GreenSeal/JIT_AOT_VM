@@ -5,7 +5,7 @@
 #include "basic_block.h"
 
 BasicBlock::BasicBlock(IRGraph *graph, const std::string &name, InstructionBase *start_inst) :
-                        graph_(graph), name_(name) {
+                        graph_(graph), name_(name), idom_(nullptr) {
     if(start_inst == nullptr) {
         first_inst_ = nullptr;
         last_inst_ = nullptr;
@@ -44,8 +44,7 @@ BasicBlock::BasicBlock(const BasicBlock &rhs) {
     prev_inst->SetNext(nullptr);
     last_inst_ = prev_inst;
 
-    succ_.clear();
-    predec_.clear();
+    idom_ = nullptr;
 }
 
 void BasicBlock::ReplaceInstBack(InstructionBase *inst) {

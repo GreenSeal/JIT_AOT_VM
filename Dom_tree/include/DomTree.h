@@ -13,12 +13,12 @@
 class DomTree final {
 public:
 
-    DomTree(const IRGraph &graph) : graph_(graph) {}
-
-    void Run() {
+    void RunAlgoAndBuildDomTree(const IRGraph *graph) {
+        graph_ = graph;
         RunStep1();
         RunStep2AndStep3();
         RunStep4();
+        BuildDomTree();
     }
 
 private:
@@ -26,15 +26,15 @@ private:
     void DFS(const BasicBlock *v, const BasicBlock *parent, size_t &cur_idx);
     void RunStep2AndStep3();
     void RunStep4();
+    void BuildDomTree();
 
     const BasicBlock *Eval(const BasicBlock *v);
     void Link(const BasicBlock *v_parent, const BasicBlock *v);
     void Compress(const BasicBlock *v);
 
-    const BasicBlock *root_;
     std::unordered_map<const BasicBlock *, BasicBlockInfo> bbs_info_;
     std::vector<const BasicBlock *> vertexes;
-    const IRGraph &graph_;
+    const IRGraph *graph_;
 
 };
 #endif //VM_DFS_H

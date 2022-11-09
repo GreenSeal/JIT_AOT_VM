@@ -116,8 +116,8 @@ public:
 
         for(auto it = from->GetSuccBegin(), end = from->GetSuccEnd(); it != end; ++it) {
             if(*it == to) {
-                from->RemoveSucc(it);
-                to->RemovePredec(to->FindPredec(from));
+                from->RemoveSucc(*it);
+                to->RemovePredec(from);
                 return;
             }
         }
