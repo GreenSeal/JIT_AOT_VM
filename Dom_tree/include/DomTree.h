@@ -19,6 +19,9 @@ public:
         RunStep2AndStep3();
         RunStep4();
         BuildDomTree();
+        vertexes.clear();
+        bbs_info_.clear();
+        graph = nullptr;
     }
 
 private:
