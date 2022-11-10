@@ -10,7 +10,7 @@ class BasicBlockInfo final {
 public:
 
     BasicBlockInfo() : dom_(nullptr), parent_(nullptr) {}
-    BasicBlockInfo(size_t id, size_t semi) : id_(id), semi_(semi), dom_(nullptr), parent_(nullptr) {}
+    BasicBlockInfo(size_t id, size_t semi) :  dom_(nullptr), parent_(nullptr), id_(id), semi_(semi) {}
 
     void SetId(size_t v) {
         id_ = v;

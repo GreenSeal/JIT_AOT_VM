@@ -12,10 +12,10 @@ class MethodInfo {};
 class IRFunction : public IRGraph, MethodInfo {
 public:
     IRFunction(const std::string &func_name, const std::vector<OperandBase*> &args, prim_type ret_type, const IRGraph &body) :
-            IRGraph(body), func_name_(func_name), args_(args), ret_type_(ret_type) {}
+    IRGraph(body), ret_type_(ret_type), func_name_(func_name), args_(args) {}
 
     IRFunction(const std::string &func_name, const std::vector<OperandBase*> &args, prim_type ret_type, BasicBlock *body) :
-            IRGraph(body, this), func_name_(func_name), args_(args), ret_type_(ret_type) {}
+    IRGraph(body, this), ret_type_(ret_type), func_name_(func_name), args_(args) {}
 
     void SetRetType(prim_type ret_type) {
         ret_type_ = ret_type;

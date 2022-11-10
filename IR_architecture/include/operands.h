@@ -36,7 +36,7 @@ public:
     enum class reg_t{v, a};
 
     IReg(reg_t reg_type, idx_type idx, prim_type value_type) :
-    OperandBase(opnd_t::ireg), reg_type_(reg_type), idx_(idx), value_type_(value_type) {}
+    OperandBase(opnd_t::ireg), value_type_(value_type), reg_type_(reg_type), idx_(idx) {}
 
     virtual IReg *clone() const override {
         return new IReg(*this);
