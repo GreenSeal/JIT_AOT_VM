@@ -81,7 +81,7 @@ public:
 
     void AddSuccWithPredec(Elt *elt) {
         succ_.push_back(elt);
-        (succ_.rend()).AddPredec(this);
+        (*succ_.rend())->AddPredec(this);
     }
 
     void RemoveSucc(Elt *elt) {

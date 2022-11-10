@@ -289,8 +289,8 @@ TEST(ir_architecture, ir_graph) {
     auto ir_graph = new IRGraph(start_bb);
     auto first_bb = ir_graph->GetRoot();
     auto second_bb = first_bb->GetFirstSucc();
-    auto third_bb = second_bb->GetSecondSucc();
-    auto forth_bb = second_bb->GetFirstSucc();
+    auto third_bb = second_bb->GetFirstSucc();
+    auto forth_bb = second_bb->GetSecondSucc();
 
     EXPECT_EQ(ir_graph->IsBBInGraph(first_bb), true);
     EXPECT_EQ(ir_graph->IsBBInGraph(second_bb), true);
@@ -320,7 +320,7 @@ TEST(ir_architecture, ir_graph) {
     EXPECT_EQ(ir_graph->IsBBsConnected(third_bb, first_bb), false);
 // ===========================================================================================
 
-// =========== Testing IRGraph creation using inserter cursor and pushing bbs back ===========
+// =========== Testing IRGraph creation using AddBBInGraph and AddEdge interface ===========
 
     auto start_bb_clone = start_bb->clone();
     auto loop_bb1_clone = loop_bb1->clone();
@@ -333,17 +333,22 @@ TEST(ir_architecture, ir_graph) {
     ir_graph_pushback->AddBBInGraph(loop_bb1_clone);
     ir_graph_pushback->AddBBInGraph(loop_bb2_clone);
     ir_graph_pushback->AddBBInGraph(done_bb_clone);
-    auto root = ir_graph_pushback->GetRoot();
-    root->AddSucc(loop_bb1_clone);
-    loop_bb1_clone->AddPredec(root);
-    loop_bb1_clone->AddSucc(loop_bb2_clone);
-    loop_bb2_clone->AddPredec(loop_bb1_clone);
-    loop_bb1_clone->AddSucc(done_bb_clone);
-    done_bb_clone->AddPredec(loop_bb1_clone);
-    loop_bb2_clone->AddSucc(loop_bb1_clone);
-    loop_bb1_clone->AddPredec(loop_bb2_clone);
-    loop_bb2_clone->AddSucc(done_bb_clone);
-    done_bb_clone->AddPredec(loop_bb2_clone);
+
+    ir_graph_pushback->AddEdge(start_bb_clone, loop_bb1_clone);
+    ir_graph_pushback->AddEdge(loop_bb1_clone, loop_bb2_clone);
+    ir_graph_pushback->AddEdge(loop_bb1_clone, done_bb_clone);
+    ir_graph_pushback->AddEdge(loop_bb2_clone, loop_bb1_clone);
+    ir_graph_pushback->AddEdge(loop_bb2_clone, done_bb_clone);
+//    root->AddSucc(loop_bb1_clone);
+//    loop_bb1_clone->AddPredec(root);
+//    loop_bb1_clone->AddSucc(loop_bb2_clone);
+//    loop_bb2_clone->AddPredec(loop_bb1_clone);
+//    loop_bb1_clone->AddSucc(done_bb_clone);
+//    done_bb_clone->AddPredec(loop_bb1_clone);
+//    loop_bb2_clone->AddSucc(loop_bb1_clone);
+//    loop_bb1_clone->AddPredec(loop_bb2_clone);
+//    loop_bb2_clone->AddSucc(done_bb_clone);
+//    done_bb_clone->AddPredec(loop_bb2_clone);
 
     EXPECT_EQ(ir_graph_pushback->IsBBInGraph(start_bb_clone), true);
     EXPECT_EQ(ir_graph_pushback->IsBBInGraph(loop_bb1_clone), true);
@@ -427,8 +432,8 @@ TEST(ir_architecture, ir_function) {
     IRFunction func("fact", std::vector{arg}, prim_type::u64, start_bb);
     auto first_bb = func.GetRoot();
     auto second_bb = first_bb->GetFirstSucc();
-    auto third_bb = second_bb->GetSecondSucc();
-    auto forth_bb = second_bb->GetFirstSucc();
+    auto third_bb = second_bb->GetFirstSucc();
+    auto forth_bb = second_bb->GetSecondSucc();
 
     EXPECT_EQ(func.IsBBsConnected(first_bb, second_bb), true);
     EXPECT_EQ(func.IsBBsConnected(second_bb, third_bb), true);
