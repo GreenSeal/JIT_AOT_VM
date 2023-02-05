@@ -8,10 +8,10 @@ void DomTree::RunStep1() {
     size_t cur_idx = 0;
     BasicBlockInfo root_info_(0, 0);
     cur_idx++;
-    vertexes.push_back(graph_->GetRoot());
-    bbs_info_.insert({graph_->GetRoot(), std::move(root_info_)});
-    for(auto it = graph_->GetRoot()->GetSuccBegin(), end = graph_->GetRoot()->GetSuccEnd(); it != end; ++it) {
-        DFS(*it, graph_->GetRoot(), cur_idx);
+    vertexes.push_back(graph_);
+    bbs_info_.insert({graph_, std::move(root_info_)});
+    for(auto it = graph_->GetSuccBegin(), end = graph_->GetSuccEnd(); it != end; ++it) {
+        DFS(*it, graph_, cur_idx);
     }
 }
 
@@ -64,7 +64,7 @@ void DomTree::RunStep4() {
             bbs_info_.at(w).SetDom(dom);
         }
     }
-    bbs_info_.at(graph_->GetRoot()).SetDom(nullptr);
+    bbs_info_.at(graph_).SetDom(nullptr);
 }
 
 const BasicBlock *DomTree::Eval(const BasicBlock *v) {

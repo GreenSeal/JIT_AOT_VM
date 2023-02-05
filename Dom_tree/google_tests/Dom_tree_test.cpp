@@ -52,22 +52,22 @@ TEST(dom_tree_algo, ir_graph1) {
     graph.AddEdge(bb7, bb4);
 
     DomTree dom_tree_algo{};
-    dom_tree_algo.RunAlgoAndBuildDomTree(&graph);
+    dom_tree_algo.RunAlgoAndBuildDomTree(graph.GetRoot());
 
-    EXPECT_TRUE(bb1->IsDominated(bb2));
+    EXPECT_TRUE(bb1->IsDirectlyDominated(bb2));
     EXPECT_EQ(bb1->GetIdom(), nullptr);
 
-    EXPECT_TRUE(bb2->IsDominated(bb3));
-    EXPECT_TRUE(bb2->IsDominated(bb4));
-    EXPECT_TRUE(bb2->IsDominated(bb6));
+    EXPECT_TRUE(bb2->IsDirectlyDominated(bb3));
+    EXPECT_TRUE(bb2->IsDirectlyDominated(bb4));
+    EXPECT_TRUE(bb2->IsDirectlyDominated(bb6));
     EXPECT_EQ(bb2->GetIdom(), bb1);
 
     EXPECT_EQ(bb3->GetIdom(), bb2);
     EXPECT_EQ(bb4->GetIdom(), bb2);
     EXPECT_EQ(bb6->GetIdom(), bb2);
 
-    EXPECT_TRUE(bb6->IsDominated(bb7));
-    EXPECT_TRUE(bb6->IsDominated(bb5));
+    EXPECT_TRUE(bb6->IsDirectlyDominated(bb7));
+    EXPECT_TRUE(bb6->IsDirectlyDominated(bb5));
     EXPECT_EQ(bb7->GetIdom(), bb6);
     EXPECT_EQ(bb5->GetIdom(), bb6);
 
@@ -143,37 +143,43 @@ TEST(dom_tree_algo, ir_graph2) {
     graph.AddEdge(bb_J, bb_C);
 
     DomTree dom_tree_algo{};
-    dom_tree_algo.RunAlgoAndBuildDomTree(&graph);
+    dom_tree_algo.RunAlgoAndBuildDomTree(graph.GetRoot());
 
-    EXPECT_TRUE(bb_A->IsDominated(bb_B));
+    EXPECT_TRUE(bb_A->IsDirectlyDominated(bb_B));
     EXPECT_EQ(bb_A->GetIdom(), nullptr);
 
-    EXPECT_TRUE(bb_B->IsDominated(bb_C));
-    EXPECT_TRUE(bb_B->IsDominated(bb_J));
+    EXPECT_TRUE(bb_B->IsDirectlyDominated(bb_C));
+    EXPECT_TRUE(bb_B->IsDirectlyDominated(bb_J));
     EXPECT_EQ(bb_B->GetIdom(), bb_A);
 
-    EXPECT_TRUE(bb_C->IsDominated(bb_D));
+    EXPECT_TRUE(bb_C->IsDirectlyDominated(bb_D));
     EXPECT_EQ(bb_C->GetIdom(), bb_B);
 
-    EXPECT_TRUE(bb_D->IsDominated(bb_E));
+    EXPECT_TRUE(bb_D->IsDirectlyDominated(bb_E));
     EXPECT_EQ(bb_D->GetIdom(), bb_C);
 
-    EXPECT_TRUE(bb_E->IsDominated(bb_F));
+    EXPECT_TRUE(bb_E->IsDirectlyDominated(bb_F));
     EXPECT_EQ(bb_E->GetIdom(), bb_D);
 
-    EXPECT_TRUE(bb_F->IsDominated(bb_G));
+    EXPECT_TRUE(bb_F->IsDirectlyDominated(bb_G));
     EXPECT_EQ(bb_F->GetIdom(), bb_E);
 
-    EXPECT_TRUE(bb_G->IsDominated(bb_H));
-    EXPECT_TRUE(bb_G->IsDominated(bb_I));
+    EXPECT_TRUE(bb_G->IsDirectlyDominated(bb_H));
+    EXPECT_TRUE(bb_G->IsDirectlyDominated(bb_I));
     EXPECT_EQ(bb_G->GetIdom(), bb_F);
 
     EXPECT_EQ(bb_H->GetIdom(), bb_G);
 
-    EXPECT_TRUE(bb_I->IsDominated(bb_K));
+    EXPECT_TRUE(bb_I->IsDirectlyDominated(bb_K));
     EXPECT_EQ(bb_I->GetIdom(), bb_G);
 
     EXPECT_EQ(bb_K->GetIdom(), bb_I);
+
+    EXPECT_TRUE(bb_A->IsDominated(bb_K));
+    EXPECT_TRUE(bb_B->IsDominated(bb_F));
+    EXPECT_FALSE(bb_J->IsDominated(bb_E));
+    EXPECT_FALSE(bb_I->IsDominated(bb_H));
+
 }
 
 TEST(dom_tree_algo, ir_graph3) {
@@ -231,26 +237,26 @@ TEST(dom_tree_algo, ir_graph3) {
     ir_graph.AddEdge(bb_H, bb_I);
 
     DomTree dom_tree_algo{};
-    dom_tree_algo.RunAlgoAndBuildDomTree(&ir_graph);
+    dom_tree_algo.RunAlgoAndBuildDomTree(ir_graph.GetRoot());
 
-    EXPECT_TRUE(bb_A->IsDominated(bb_B));
+    EXPECT_TRUE(bb_A->IsDirectlyDominated(bb_B));
     EXPECT_EQ(bb_A->GetIdom(), nullptr);
 
-    EXPECT_TRUE(bb_B->IsDominated(bb_C));
-    EXPECT_TRUE(bb_B->IsDominated(bb_D));
-    EXPECT_TRUE(bb_B->IsDominated(bb_E));
-    EXPECT_TRUE(bb_B->IsDominated(bb_G));
-    EXPECT_TRUE(bb_B->IsDominated(bb_I));
+    EXPECT_TRUE(bb_B->IsDirectlyDominated(bb_C));
+    EXPECT_TRUE(bb_B->IsDirectlyDominated(bb_D));
+    EXPECT_TRUE(bb_B->IsDirectlyDominated(bb_E));
+    EXPECT_TRUE(bb_B->IsDirectlyDominated(bb_G));
+    EXPECT_TRUE(bb_B->IsDirectlyDominated(bb_I));
     EXPECT_EQ(bb_B->GetIdom(), bb_A);
 
     EXPECT_EQ(bb_C->GetIdom(), bb_B);
     EXPECT_EQ(bb_D->GetIdom(), bb_B);
     EXPECT_EQ(bb_G->GetIdom(), bb_B);
 
-    EXPECT_TRUE(bb_E->IsDominated(bb_F));
+    EXPECT_TRUE(bb_E->IsDirectlyDominated(bb_F));
     EXPECT_EQ(bb_E->GetIdom(), bb_B);
 
-    EXPECT_TRUE(bb_F->IsDominated(bb_H));
+    EXPECT_TRUE(bb_F->IsDirectlyDominated(bb_H));
     EXPECT_EQ(bb_F->GetIdom(), bb_E);
 
     EXPECT_EQ(bb_H->GetIdom(), bb_F);

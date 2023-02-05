@@ -13,7 +13,7 @@
 class DomTree final {
 public:
 
-    void RunAlgoAndBuildDomTree(const IRGraph *graph) {
+    void RunAlgoAndBuildDomTree(const BasicBlock *graph) {
         graph_ = graph;
         RunStep1();
         RunStep2AndStep3();
@@ -37,7 +37,7 @@ private:
 
     std::unordered_map<const BasicBlock *, BasicBlockInfo> bbs_info_;
     std::vector<const BasicBlock *> vertexes;
-    const IRGraph *graph_;
+    const BasicBlock *graph_;
 
 };
 #endif //VM_DFS_H

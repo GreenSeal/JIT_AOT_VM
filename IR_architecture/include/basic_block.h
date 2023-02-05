@@ -4,8 +4,10 @@
 #include <string>
 #include <exception>
 #include "instructions.h"
+#include "marker_mgr.h"
 
 class IRGraph;
+class Loop;
 
 class BasicBlock : public ilist_graph_node<BasicBlock> {
 public:
@@ -123,9 +125,22 @@ public:
         return dominated_bbs_.end();
     }
 
-    bool IsDominated(BasicBlock *bb) {
+    bool IsDirectlyDominated(BasicBlock *bb) {
         for(auto &&dominated_bb : dominated_bbs_) {
             if(dominated_bb == bb) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    bool IsDominated(BasicBlock *bb) {
+        if(IsDirectlyDominated(bb))
+            return true;
+
+        for(const auto &dominated_bb : dominated_bbs_) {
+            if(dominated_bb->IsDominated(bb)) {
                 return true;
             }
         }
@@ -148,7 +163,42 @@ public:
         return new BasicBlock(*this);
     }
 
+    void SetMarkerAt(size_t idx, size_t value) {
+        if(idx < markers_.markers.size()) {
+            markers_.markers[idx] = value;
+        } else {
+            throw std::invalid_argument("Bad marker idx");
+        }
+    }
+
+    void UnSetMarkerAt(size_t idx) {
+        if(idx < markers_.markers.size()) {
+            markers_.markers[idx] = 0;
+        } else {
+            throw std::invalid_argument("Bad marker idx");
+        }
+    }
+
+    size_t GetMarkerAt(size_t idx) {
+        if(idx < markers_.markers.size()) {
+            return markers_.markers[idx];
+        } else {
+            throw std::invalid_argument("Bad marker idx");
+        }
+    }
+
+    void SetLoop(Loop *loop) {
+        loop_ = loop;
+    }
+
+    Loop *GetLoop() const {
+        return loop_;
+    }
+
 protected:
+
+    size_t id_;
+
     IRGraph *graph_;
     InstructionBase *first_inst_;
     InstructionBase *last_inst_;
@@ -156,6 +206,10 @@ protected:
 
     std::vector<BasicBlock *> dominated_bbs_;
     BasicBlock *idom_;
+
+    Loop *loop_;
+
+    MarkerMgr<4> markers_;
 };
 
 #endif //JIT_AOT_IN_VM_BASIC_BLOCK_H

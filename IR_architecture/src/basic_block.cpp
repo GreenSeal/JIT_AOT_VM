@@ -5,7 +5,7 @@
 #include "basic_block.h"
 
 BasicBlock::BasicBlock(IRGraph *graph, const std::string &name, InstructionBase *start_inst) :
-                        graph_(graph), name_(name), idom_(nullptr) {
+                        graph_(graph), name_(name), idom_(nullptr), loop_(nullptr) {
     if(start_inst == nullptr) {
         first_inst_ = nullptr;
         last_inst_ = nullptr;

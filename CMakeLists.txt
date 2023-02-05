@@ -6,10 +6,11 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 
 set(IR_ARCHITECTURE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/IR_architecture)
-
+set(DOM_TREE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Dom_tree)
 
 add_subdirectory(IR_architecture)
 add_subdirectory(Dom_tree)
+add_subdirectory(Loop_search)
 if(NOT EXISTS ${dir}/CMakeLists.txt)
     execute_process(COMMAND git submodule update --init --recursive -- third_party/googletest)
 endif()
