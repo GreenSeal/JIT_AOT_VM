@@ -35,73 +35,73 @@ IRGraph::IRGraph(BasicBlock *root, IRFunction *func) : func_(func), root_(nullpt
     }
 }
 
-IRGraph::IRGraph(const IRGraph &rhs) {
-    if(rhs.root_ != nullptr) {
+//IRGraph::IRGraph(const IRGraph &rhs) {
+//    if(rhs.root_ != nullptr) {
+//
+//        // first we go around all the vertices of the graph using BFS algorithm and copy them
+//        // ==================================================================================
+//        std::unordered_map<const BasicBlock*, BasicBlock*> old_to_new_map;
+//
+//        std::unordered_set<const BasicBlock*> explored_old_bbs;
+//        std::queue<const BasicBlock*> bbs_to_copy;
+//
+//        bbs_to_copy.push(rhs.root_);
+//        explored_old_bbs.insert(rhs.root_);
+//
+//        while(!bbs_to_copy.empty()) {
+//            auto old_bb = bbs_to_copy.front();
+//            bbs_to_copy.pop();
+//
+//            BasicBlock *new_bb = old_bb->clone();
+//            old_to_new_map[old_bb] = new_bb;
+//            bb_set_.insert(new_bb);
+//
+//            for(auto it = old_bb->GetSuccBegin(), end = old_bb->GetSuccEnd(); it != end; ++it) {
+//                if(!explored_old_bbs.contains(*it)) {
+//                    bbs_to_copy.push(*it);
+//                    explored_old_bbs.insert(*it);
+//                }
+//            }
+//        }
+//
+//        // ==================================================================================
+//
+//        // then fill adjacency list using again BFS
+//        // ==================================================================================
+//        explored_old_bbs.clear();
+//
+//        bbs_to_copy.push(rhs.root_);
+//        explored_old_bbs.insert(rhs.root_);
+//
+//        while(!bbs_to_copy.empty()) {
+//            auto old_bb = bbs_to_copy.front();
+//            bbs_to_copy.pop();
+//
+//            BasicBlock *new_bb = old_to_new_map.at(old_bb);
+//            for(auto it = old_bb->GetPredecBegin(), end = old_bb->GetPredecEnd(); it != end; ++it) {
+//                BasicBlock *old_pred = *it;
+//                BasicBlock *new_pred = old_to_new_map.at(old_pred);
+//                new_bb->AddPredec(new_pred);
+//            }
+//
+//            for(auto it = old_bb->GetSuccBegin(), end = old_bb->GetSuccEnd(); it != end; ++it) {
+//                BasicBlock *old_succ = *it;
+//                BasicBlock *new_succ = old_to_new_map.at(old_succ);
+//                new_bb->AddSucc(new_succ);
+//
+//                if(!explored_old_bbs.contains(old_succ)) {
+//                    bbs_to_copy.push(old_succ);
+//                    explored_old_bbs.insert(old_succ);
+//                }
+//            }
+//        }
+//        // ==================================================================================
+//        root_ = old_to_new_map.at(rhs.root_);
+//    }
+//}
 
-        // first we go around all the vertices of the graph using BFS algorithm and copy them
-        // ==================================================================================
-        std::unordered_map<const BasicBlock*, BasicBlock*> old_to_new_map;
 
-        std::unordered_set<const BasicBlock*> explored_old_bbs;
-        std::queue<const BasicBlock*> bbs_to_copy;
-
-        bbs_to_copy.push(rhs.root_);
-        explored_old_bbs.insert(rhs.root_);
-
-        while(!bbs_to_copy.empty()) {
-            auto old_bb = bbs_to_copy.front();
-            bbs_to_copy.pop();
-
-            BasicBlock *new_bb = old_bb->clone();
-            old_to_new_map[old_bb] = new_bb;
-            bb_set_.insert(new_bb);
-
-            for(auto it = old_bb->GetSuccBegin(), end = old_bb->GetSuccEnd(); it != end; ++it) {
-                if(!explored_old_bbs.contains(*it)) {
-                    bbs_to_copy.push(*it);
-                    explored_old_bbs.insert(*it);
-                }
-            }
-        }
-
-        // ==================================================================================
-
-        // then fill adjacency list using again BFS
-        // ==================================================================================
-        explored_old_bbs.clear();
-
-        bbs_to_copy.push(rhs.root_);
-        explored_old_bbs.insert(rhs.root_);
-
-        while(!bbs_to_copy.empty()) {
-            auto old_bb = bbs_to_copy.front();
-            bbs_to_copy.pop();
-
-            BasicBlock *new_bb = old_to_new_map.at(old_bb);
-            for(auto it = old_bb->GetPredecBegin(), end = old_bb->GetPredecEnd(); it != end; ++it) {
-                BasicBlock *old_pred = *it;
-                BasicBlock *new_pred = old_to_new_map.at(old_pred);
-                new_bb->AddPredec(new_pred);
-            }
-
-            for(auto it = old_bb->GetSuccBegin(), end = old_bb->GetSuccEnd(); it != end; ++it) {
-                BasicBlock *old_succ = *it;
-                BasicBlock *new_succ = old_to_new_map.at(old_succ);
-                new_bb->AddSucc(new_succ);
-
-                if(!explored_old_bbs.contains(old_succ)) {
-                    bbs_to_copy.push(old_succ);
-                    explored_old_bbs.insert(old_succ);
-                }
-            }
-        }
-        // ==================================================================================
-        root_ = old_to_new_map.at(rhs.root_);
-    }
-}
-
-
-/*void IRGraph::CreateAndInsertBBBack(InstructionBase *start_instr, const std::string &label) {
+/*void IRGraph::CreateAndInsertBBBack(Instruction *start_instr, const std::string &label) {
     auto *new_bb = new BasicBlock(this, label, start_instr);
 
     root_->AddSucc(new_bb);

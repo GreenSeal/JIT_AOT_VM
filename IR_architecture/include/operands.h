@@ -4,110 +4,154 @@
 
 #ifndef JIT_AOT_IN_VM_OPERANDS_H
 #define JIT_AOT_IN_VM_OPERANDS_H
+#include <concepts>
+#include <vector>
 
-enum class opnd_t {ireg, label, imm};
-enum class prim_type {u32, u64, none};
+#include "value.h"
 
-class OperandBase {
+enum class prim_type : uint8_t {UINT, INT, DOUBLE, NONE};
+
+class Operand : public Value {
 public:
-    OperandBase(opnd_t type) : type_(type) {}
+    enum class opnd_t: uint8_t {simple, phi};
 
-    virtual OperandBase *clone() const {
-        return new OperandBase(*this);
+    const Value *GetUser() const {
+        return user_;
     }
 
-    virtual ~OperandBase() {}
-
-    opnd_t GetType() const {
-        return type_;
+    Value *GetUser() {
+        return user_;
     }
 
-    void SetType(opnd_t type) {
-        type_ = type;
+    void SetUser(Value *user) {
+        user_ = user;
     }
+
+    opnd_t GetOpndType() const {
+        return opnd_type_;
+    }
+
+    virtual ~Operand() {}
+
+protected:
+    Operand(Value *user, opnd_t opnd_type) :
+    Value(value_t::opnd), opnd_type_(opnd_type), user_(user) {}
+
+    Operand(const Operand &other) = delete;
+    Operand &operator=(const Operand &other) = delete;
+
+    Operand(Operand &&other) = delete;
+    Operand &operator=(Operand &&other) = delete;
 
 private:
-    opnd_t type_;
+    opnd_t opnd_type_;
+    Value *user_;
 };
 
-class IReg final : public OperandBase {
+class SimpleOperand : public Operand {
+public:
+    enum class simple_opnd_t{ireg, imm};
+
+    prim_type GetPrimType() const {
+        return p_type_;
+    }
+
+    uint8_t GetBitLenght() const {
+        return bit_lenght_;
+    }
+
+protected:
+    SimpleOperand(Value *user, prim_type p_type, uint8_t bit_lenght) :
+    Operand(user, opnd_t::simple), p_type_(p_type), bit_lenght_(bit_lenght) {}
+
+    prim_type p_type_;
+    uint8_t bit_lenght_;
+};
+
+class IReg : public SimpleOperand {
 public:
     using idx_type = size_t;
-    enum class reg_t{v, a};
+    enum class reg_t{i, d, u, none};
 
-    IReg(reg_t reg_type, idx_type idx, prim_type value_type) :
-    OperandBase(opnd_t::ireg), value_type_(value_type), reg_type_(reg_type), idx_(idx) {}
+    IReg(prim_type p_type, uint8_t bit_lenght, idx_type idx, Value *user = nullptr) :
+    SimpleOperand(user, p_type, bit_lenght), idx_(idx) {}
 
-    virtual IReg *clone() const override {
-        return new IReg(*this);
-    }
-
-    prim_type GetRegValueType() const {
-        return value_type_;
-    }
-
-    void SetRegValueType(prim_type value_type) {
-        value_type_ = value_type;
-    }
-
-    reg_t GetRegType() const {
-        return reg_type_;
-    }
-
-    void SetRegType(reg_t reg_type) {
-        reg_type_ = reg_type;
+    static reg_t GetRegType(prim_type p_type) {
+        switch(p_type) {
+            case prim_type::INT: return reg_t::i;
+            case prim_type::UINT: return reg_t::u;
+            case prim_type::DOUBLE: return reg_t::d;
+            default: return reg_t::none;
+        }
     }
 
     idx_type GetRegIdx() const {
         return idx_;
     }
 
-    void SetRegIdx(idx_type idx) {
-        idx_ = idx;
-    }
+    virtual ~IReg() = default;
+
 private:
-    prim_type value_type_;
-    reg_t reg_type_;
     idx_type idx_;
 };
 
-class Label final : public OperandBase {
+class Label final {
 public:
-    Label(const std::string &name) : OperandBase(opnd_t::label), name_(name) {}
+    template <class Str>
+    requires std::constructible_from<std::string, Str>
+    Label(Str &&name, size_t pos = std::numeric_limits<size_t>::max()) : name_(name), pos_(pos) {}
 
-    virtual Label *clone() const override {
-        return new Label(*this);
-    }
-
-    std::string GetLabelName() const {
+    std::string GetName() const {
         return name_;
     }
 
-    void SetLabelName(const std::string &name) {
-        name_ = name;
+    size_t GetPos() const {
+        return pos_;
+    }
+
+    void SetPos(size_t pos) {
+        pos_ = pos;
     }
 
 private:
     std::string name_;
+    size_t pos_;
 };
 
-class UInt32Const final : public OperandBase {
+
+
+//TODO: вывести prim_type и bit_lenght из типа
+template <class T>
+requires std::integral<T> || std::floating_point<T>
+class Immediate final : public SimpleOperand {
 public:
-    UInt32Const(uint32_t value) : OperandBase(opnd_t::imm), value_(value) {}
+    using type = T;
+    Immediate(prim_type p_type, uint8_t bit_lenght, T value, Value *user = nullptr) :
+    SimpleOperand(user, p_type, bit_lenght), value_(value) {}
 
-    virtual UInt32Const *clone() const override {
-        return new UInt32Const(*this);
-    }
-
-    uint32_t GetUInt32Value() const {
+    T GetValue() const {
         return value_;
     }
 
-    void SetConstUint32Value(uint32_t value) {
+    void SetValue(T value) {
         value_ = value;
     }
 private:
-    uint32_t value_;
+    T value_;
 };
+
+class PhiOperand final: public Operand {
+public:
+    PhiOperand(Value *user, const std::string &name, std::unique_ptr<SimpleOperand> &&opnd) :
+    Operand(user, opnd_t::phi), opnd_{Label(name), std::move(opnd)} {}
+
+    PhiOperand(Value *user, const std::string &name, SimpleOperand *opnd) :
+    Operand(user, opnd_t::phi), opnd_{Label(name), std::unique_ptr<SimpleOperand>(opnd)} {}
+
+private:
+    std::pair<Label, std::unique_ptr<SimpleOperand>> opnd_;
+};
+
+
 
 #endif //JIT_AOT_IN_VM_OPERANDS_H

@@ -12,17 +12,28 @@ class Loop;
 class BasicBlock : public ilist_graph_node<BasicBlock> {
 public:
 
-    BasicBlock(IRGraph *graph = nullptr, const std::string &name = "", InstructionBase *start_inst = nullptr);
-    BasicBlock(const BasicBlock &rhs);
+    BasicBlock(IRGraph *graph = nullptr, const std::string &name = "", Instruction *start_inst = nullptr);
 
-    template <typename elt>
-    class bb_iterator : std::iterator<std::bidirectional_iterator_tag,
-            elt, std::ptrdiff_t, elt *, elt &> {
+    BasicBlock(const BasicBlock &rhs) = delete;
+    BasicBlock &operator=(const BasicBlock &) = delete;
 
-        elt *cur_pos;
+    BasicBlock(BasicBlock &&) = delete;
+    BasicBlock &operator=(BasicBlock &&) = delete;
+
+    template <class InstPtr>
+    class bb_iterator {
+
+        InstPtr cur_pos;
 
     public:
-        explicit bb_iterator(elt *new_pos = nullptr) {
+        using iterator_category = std::bidirectional_iterator_tag;
+        using value_type = Instruction *;
+        using difference_type = Instruction *;
+        using pointer = Instruction **;
+        using reference = Instruction *&;
+
+
+        explicit bb_iterator(InstPtr new_pos = nullptr) {
             cur_pos = new_pos;
         }
 
@@ -56,20 +67,24 @@ public:
             return cur_pos != other.cur_pos;
         }
 
-        elt *operator*() const {
+        InstPtr operator*() const {
+            return cur_pos;
+        }
+
+        InstPtr operator->() const {
             return cur_pos;
         }
     };
 
-    using iterator = bb_iterator<InstructionBase>;
-    using const_iterator = bb_iterator<const InstructionBase>;
+    using iterator = bb_iterator<Instruction *>;
+    using const_iterator = bb_iterator<const Instruction *>;
 
     iterator begin() {
-        return iterator(first_inst_);
+        return iterator{first_inst_};
     }
 
     const_iterator begin() const {
-        return const_iterator(first_inst_);
+        return const_iterator{first_inst_};
     }
 
     iterator end() {
@@ -79,17 +94,28 @@ public:
     const_iterator end() const {
         return const_iterator();
     }
+    void InsertInstBack(Instruction *inst) {
+        last_inst_->SetNext(inst);
+        inst->SetPrev(last_inst_);
+        last_inst_ = inst;
+    }
 
-    void ReplaceInstBack(InstructionBase *inst);
+    void InsertInstForward(Instruction *inst) {
+        first_inst_->SetPrev(inst);
+        inst->SetNext(first_inst_);
+        first_inst_ = inst;
+    }
 
-    const InstructionBase *GetFirstInst() const {
+    void ReplaceInstBack(Instruction *inst);
+
+    const Instruction *GetFirstInst() const {
         return first_inst_;
     }
 
-    void SetFirstInst(InstructionBase *first_inst);
-    void SetLastInst(InstructionBase *last_inst);
+    void SetFirstInst(Instruction *first_inst);
+    void SetLastInst(Instruction *last_inst);
 
-    const InstructionBase *GetLastInst() const {
+    const Instruction *GetLastInst() const {
         return last_inst_;
     }
 
@@ -159,10 +185,6 @@ public:
         }
     }
 
-    virtual BasicBlock *clone() const {
-        return new BasicBlock(*this);
-    }
-
     void SetMarkerAt(size_t idx, size_t value) {
         if(idx < markers_.markers.size()) {
             markers_.markers[idx] = value;
@@ -200,8 +222,8 @@ protected:
     size_t id_;
 
     IRGraph *graph_;
-    InstructionBase *first_inst_;
-    InstructionBase *last_inst_;
+    Instruction *first_inst_;
+    Instruction *last_inst_;
     std::string name_;
 
     std::vector<BasicBlock *> dominated_bbs_;

@@ -7,119 +7,104 @@
 
 #include <memory>
 
-#include "operands.h"
+#include "user.h"
 #include "ilist_nodes.h"
 
-enum class inst_t {movi, u32tou64, cmp, ja, mul, addi, jmp, ret};
-enum class class_t {base, unary, binary, ternary};
+enum class inst_t {movi, u32tou64, cmp, ja, mul, add, jmp, ret, phi};
+enum class class_t {none, unary, binary, jump, nary, phi};
 
-class InstructionBase : public ilist_bidirectional_node<InstructionBase> {
+class Instruction : public ilist_bidirectional_node<Instruction> {
 public:
-    InstructionBase(class_t class_type, inst_t type, prim_type ptype) : class_type_(class_type), type_(type), prim_type_(ptype) {}
-    InstructionBase(const InstructionBase &rhs) : class_type_(rhs.class_type_), type_(rhs.type_) {
-        SetNext(nullptr);
-        SetPrev(nullptr);
-    }
+    Instruction(inst_t type, prim_type ptype) : type_(type), prim_type_(ptype) {}
 
-    virtual ~InstructionBase() {}
+    Instruction(const Instruction &other) = delete;
+    Instruction &operator=(const Instruction &other) = delete;
 
-    virtual InstructionBase *clone() const {
-        return new InstructionBase(*this);
-    }
+    Instruction(Instruction &&other) = delete;
+    Instruction &&operator=(Instruction &&other) = delete;
 
-    inst_t GetType() const {
+    virtual ~Instruction() {}
+
+    inst_t GetInstType() const {
         return type_;
     }
 
-    class_t GetClassType() const {
-        return class_type_;
+    static class_t GetClassType(inst_t inst_type) {
+        switch(inst_type) {
+            case inst_t::u32tou64: return class_t::unary;
+            case inst_t::jmp: return class_t::jump;
+            case inst_t::ja: return class_t::jump;
+            case inst_t::ret: return class_t::unary;
+            case inst_t::add: return class_t::binary;
+            case inst_t::cmp: return class_t::binary;
+            case inst_t::movi: return class_t::unary;
+            case inst_t::mul: return class_t::binary;
+            case inst_t::phi: return class_t::phi;
+        }
     }
 
 protected:
 
-    class_t class_type_;
     inst_t type_;
     prim_type prim_type_;
 };
 
-class UnaryInstr : public InstructionBase {
+
+// TODO: nontrivial initialization of result operand
+// TODO: after that rewrite tests
+template <size_t opnds_num = std::numeric_limits<size_t>::max()>
+class NarySimpleInstr : public Instruction, public User<SimpleOperand, opnds_num> {
 public:
-    UnaryInstr(std::unique_ptr<OperandBase>&& opnd1, inst_t type, prim_type ptype, class_t class_type = class_t::unary) :
-    InstructionBase(class_type, type, ptype), opnd1_(std::move(opnd1)) {}
+    template<class ...Opnds>
+    requires IsPackBaseOfSimpleOperand<Opnds...>
+    NarySimpleInstr(inst_t type, prim_type p_type, std::unique_ptr<Opnds> &&... opnd) :
+    Instruction(type, p_type), User<SimpleOperand, opnds_num>(p_type, 32, 0, opnd...) {}
 
-    UnaryInstr(OperandBase *opnd1, inst_t type, prim_type ptype, class_t class_type = class_t::unary) :
-            InstructionBase(class_type, type, ptype), opnd1_(opnd1) {}
+    template<class ...Opnds>
+    requires IsPackBaseOfSimpleOperand<Opnds...>
+    NarySimpleInstr(inst_t type, prim_type p_type, Opnds *... opnd) :
+            Instruction(type, p_type), User<SimpleOperand, opnds_num>(p_type, 32, 0, std::unique_ptr<Opnds>(opnd)...) {}
 
-    UnaryInstr(const UnaryInstr &rhs) : InstructionBase(rhs), opnd1_(rhs.GetOpnd(0)->clone()) {}
+    NarySimpleInstr(const NarySimpleInstr &rhs) = delete;
+    NarySimpleInstr &operator=(const NarySimpleInstr &) = delete;
 
-    virtual ~UnaryInstr() {}
+    NarySimpleInstr(NarySimpleInstr &&) = delete;
+    NarySimpleInstr &operator=(NarySimpleInstr &&) = delete;
+};
 
-    virtual UnaryInstr *clone() const override {
-        return new UnaryInstr(*this);
-    }
+class Jump : public Instruction {
+public:
 
-    virtual const OperandBase *GetOpnd(size_t) const {
-        return opnd1_.get();
+    template<class Str>
+    requires std::same_as<Str, std::string> || std::convertible_to<Str, const char *>
+    Jump(Str &&label_name, inst_t jmp_type = inst_t::jmp) : Instruction(jmp_type, prim_type::NONE),
+    label_(label_name) {}
+
+    std::string GetLabelName() {
+        return label_.GetName();
     }
 
 protected:
-    std::unique_ptr<OperandBase> opnd1_;
+    Label label_;
 };
+template <class ...Elts>
+concept is_pack_of_phipairs = (std::same_as<Elts, std::pair<Label, std::unique_ptr<SimpleOperand>>> && ...);
 
-class BinaryInstr : public UnaryInstr {
+class PhiInst final : public Instruction,
+        User<std::pair<Label, std::unique_ptr<SimpleOperand>>, std::numeric_limits<size_t>::max()> {
+    using PhiPair = OperandType;
+
 public:
-    BinaryInstr(std::unique_ptr<OperandBase>&& opnd1, std::unique_ptr<OperandBase>&& opnd2, inst_t type,
-                prim_type ptype, class_t class_type) :
-            UnaryInstr(std::move(opnd1), type, ptype, class_type), opnd2_(std::move(opnd2)) {}
+    template <class ...Args>
+    requires is_pack_of_phipairs<Args...>
+    PhiInst(prim_type p_type, std::unique_ptr<Args> && ...args) : Instruction(inst_t::phi, p_type),
+    User<PhiPair, std::numeric_limits<size_t>::max()>(args...) {}
 
-    BinaryInstr(OperandBase *opnd1, OperandBase *opnd2, inst_t type, prim_type ptype, class_t class_type = class_t::binary) :
-    UnaryInstr(opnd1, type, ptype, class_type), opnd2_(opnd2) {}
-
-    BinaryInstr(const BinaryInstr &rhs) : UnaryInstr(rhs), opnd2_(rhs.GetOpnd(1)->clone()) {};
-
-    virtual ~BinaryInstr() {}
-
-    virtual BinaryInstr *clone() const override {
-        return new BinaryInstr(*this);
-    }
-
-    virtual const OperandBase* GetOpnd(size_t idx) const override{
-        if(idx == 0) {
-            return opnd1_.get();
-        } else {
-            return opnd2_.get();
-        }
-    }
-protected:
-    std::unique_ptr<OperandBase> opnd2_;
+    template<class ...Args>
+    requires is_pack_of_phipairs<Args...>
+    PhiInst(prim_type p_type, Args * ...args) : Instruction(inst_t::phi, p_type),
+    User<PhiPair, std::numeric_limits<size_t>::max()>(args...) {}
 };
 
-class TernaryInstr final : public BinaryInstr {
-public:
-    TernaryInstr(std::unique_ptr<OperandBase>&& opnd1, std::unique_ptr<OperandBase>&& opnd2,
-                  std::unique_ptr<OperandBase>&& opnd3, inst_t type, prim_type ptype) :
-                  BinaryInstr(std::move(opnd1), std::move(opnd2), type, ptype, class_t::ternary), opnd3_(std::move(opnd3)) {}
-
-    TernaryInstr(OperandBase *opnd1, OperandBase *opnd2, OperandBase *opnd3, inst_t type, prim_type ptype) :
-            BinaryInstr(opnd1, opnd2, type, ptype, class_t::ternary), opnd3_(opnd3) {}
-
-    TernaryInstr(const TernaryInstr &rhs) : BinaryInstr(rhs), opnd3_(rhs.GetOpnd(2)->clone()) {};
-
-    TernaryInstr *clone() const override {
-        return new TernaryInstr(*this);
-    }
-
-    virtual const OperandBase *GetOpnd(size_t idx) const override {
-        if(idx == 0) {
-            return opnd1_.get();
-        } else if(idx == 1) {
-            return opnd2_.get();
-        } else {
-            return opnd3_.get();
-        }
-    }
-private:
-    std::unique_ptr<OperandBase> opnd3_;
-};
 
 #endif //JIT_AOT_IN_VM_INSTRUCTIONS_H

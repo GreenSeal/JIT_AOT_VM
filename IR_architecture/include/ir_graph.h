@@ -13,18 +13,21 @@
 
 class IRFunction;
 
-class RuntimeInfo {};
-class BackendInfo {};
-class OptimisationsInfo {};
-
-class IRGraph : public RuntimeInfo, BackendInfo, OptimisationsInfo {
+class IRGraph {
 public:
     using sztype = size_t;
 
     IRGraph(BasicBlock *root = nullptr, IRFunction *func = nullptr);
-    IRGraph(const IRGraph &rhs);
 
-    // void CreateAndInsertBBBack(InstructionBase *start_instr, const std::string &label = "");
+    IRGraph(const IRGraph &rhs) = delete;
+    IRGraph &operator=(const IRGraph &) = delete;
+
+    IRGraph(IRGraph && other) : func_(std::move(other.func_)),
+    bb_set_(std::move(other.bb_set_)), root_(std::move(other.root_)) {};
+
+    IRGraph &operator=(IRGraph &&) = delete;
+
+    // void CreateAndInsertBBBack(Instruction *start_instr, const std::string &label = "");
 
     bool IsBBsConnected(BasicBlock *bb, BasicBlock *bb_succ) const;
     void AddBBToBegin(BasicBlock *bb);
