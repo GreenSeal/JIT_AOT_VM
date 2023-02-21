@@ -71,27 +71,23 @@ protected:
 class IReg : public SimpleOperand {
 public:
     using idx_type = size_t;
-    enum class reg_t{i, d, u, none};
+    enum class reg_t{t, a, g, none};
 
-    IReg(prim_type p_type, uint8_t bit_lenght, idx_type idx, Value *user = nullptr) :
-    SimpleOperand(user, p_type, bit_lenght), idx_(idx) {}
-
-    static reg_t GetRegType(prim_type p_type) {
-        switch(p_type) {
-            case prim_type::INT: return reg_t::i;
-            case prim_type::UINT: return reg_t::u;
-            case prim_type::DOUBLE: return reg_t::d;
-            default: return reg_t::none;
-        }
-    }
+    IReg(prim_type p_type, uint8_t bit_lenght, reg_t reg_type, idx_type idx, Value *user = nullptr) :
+    SimpleOperand(user, p_type, bit_lenght), reg_type_(reg_type), idx_(idx) {}
 
     idx_type GetRegIdx() const {
         return idx_;
     }
 
+    reg_t GetRegType() const {
+        return reg_type_;
+    }
+
     virtual ~IReg() = default;
 
 private:
+    reg_t reg_type_;
     idx_type idx_;
 };
 
@@ -101,7 +97,11 @@ public:
     requires std::constructible_from<std::string, Str>
     Label(Str &&name, size_t pos = std::numeric_limits<size_t>::max()) : name_(name), pos_(pos) {}
 
-    std::string GetName() const {
+    const std::string_view GetName() const {
+        return name_;
+    }
+
+    std::string_view GetName() {
         return name_;
     }
 

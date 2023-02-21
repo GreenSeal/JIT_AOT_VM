@@ -56,14 +56,14 @@ template <size_t opnds_num = std::numeric_limits<size_t>::max()>
 class NarySimpleInstr : public Instruction, public User<SimpleOperand, opnds_num> {
 public:
     template<class ...Opnds>
-    requires IsPackBaseOfSimpleOperand<Opnds...>
-    NarySimpleInstr(inst_t type, prim_type p_type, std::unique_ptr<Opnds> &&... opnd) :
-    Instruction(type, p_type), User<SimpleOperand, opnds_num>(p_type, 32, 0, opnd...) {}
+    requires IsPackDerivedFromSameType<SimpleOperand, Opnds...>
+    NarySimpleInstr(inst_t type, std::unique_ptr<IReg> &&res, std::unique_ptr<Opnds> &&... opnd) :
+    Instruction(type, res->GetPrimType()), User<SimpleOperand, opnds_num>(std::move(res), opnd...) {}
 
     template<class ...Opnds>
-    requires IsPackBaseOfSimpleOperand<Opnds...>
-    NarySimpleInstr(inst_t type, prim_type p_type, Opnds *... opnd) :
-            Instruction(type, p_type), User<SimpleOperand, opnds_num>(p_type, 32, 0, std::unique_ptr<Opnds>(opnd)...) {}
+    requires IsPackDerivedFromSameType<SimpleOperand, Opnds...>
+    NarySimpleInstr(inst_t type, IReg *res, Opnds *... opnd) :
+            Instruction(type, res->GetPrimType()), User<SimpleOperand, opnds_num>(res, opnd...) {}
 
     NarySimpleInstr(const NarySimpleInstr &rhs) = delete;
     NarySimpleInstr &operator=(const NarySimpleInstr &) = delete;
@@ -80,7 +80,7 @@ public:
     Jump(Str &&label_name, inst_t jmp_type = inst_t::jmp) : Instruction(jmp_type, prim_type::NONE),
     label_(label_name) {}
 
-    std::string GetLabelName() {
+    std::string_view GetLabelName() {
         return label_.GetName();
     }
 
@@ -88,22 +88,48 @@ protected:
     Label label_;
 };
 template <class ...Elts>
-concept is_pack_of_phipairs = (std::same_as<Elts, std::pair<Label, std::unique_ptr<SimpleOperand>>> && ...);
+concept is_pack_of_phipairs = (std::constructible_from<std::pair<Label, std::unique_ptr<SimpleOperand>>, Elts> && ...);
 
 class PhiInst final : public Instruction,
-        User<std::pair<Label, std::unique_ptr<SimpleOperand>>, std::numeric_limits<size_t>::max()> {
+        protected User<std::pair<Label, std::unique_ptr<SimpleOperand>>, std::numeric_limits<size_t>::max()> {
     using PhiPair = OperandType;
 
 public:
     template <class ...Args>
     requires is_pack_of_phipairs<Args...>
-    PhiInst(prim_type p_type, std::unique_ptr<Args> && ...args) : Instruction(inst_t::phi, p_type),
-    User<PhiPair, std::numeric_limits<size_t>::max()>(args...) {}
+    PhiInst(std::unique_ptr<IReg> res, std::unique_ptr<Args> && ...args) : Instruction(inst_t::phi, res->GetPrimType()),
+    User<PhiPair, std::numeric_limits<size_t>::max()>(std::move(res), std::move(args)...) {}
 
-    template<class ...Args>
+    template <class ...Args>
     requires is_pack_of_phipairs<Args...>
-    PhiInst(prim_type p_type, Args * ...args) : Instruction(inst_t::phi, p_type),
-    User<PhiPair, std::numeric_limits<size_t>::max()>(args...) {}
+    PhiInst(IReg *res, Args ...args) :
+    Instruction(inst_t::phi, res->GetPrimType()),
+    User<PhiPair, std::numeric_limits<size_t>::max()>(std::unique_ptr<IReg>(res), std::make_unique<Args>(std::move(args))...) {}
+
+    const std::string_view GetLabelAt(size_t idx) const {
+        return GetOpndAt(idx)->first.GetName();
+    }
+
+    std::string_view GetLabelAt(size_t idx) {
+        return GetOpndAt(idx)->first.GetName();
+    }
+
+    const IReg *GetRes() const {
+        return GetResReg();
+    }
+
+    IReg *GetRes() {
+        return GetResReg();
+    }
+
+    const SimpleOperand *GetOperandAt(size_t idx) const {
+        return GetOpndAt(idx)->second.get();
+    }
+
+    SimpleOperand *GetOperandAt(size_t idx) {
+        return GetOpndAt(idx)->second.get();
+    }
+
 };
 
 

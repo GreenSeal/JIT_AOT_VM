@@ -7,6 +7,7 @@
 
 #include "user.h"
 #include "ir_graph.h"
+#include "reg_builder.h"
 
 class MethodInfo {};
 
@@ -14,19 +15,19 @@ class IRFunction : public IRGraph, protected User<SimpleOperand, std::numeric_li
 public:
 
     template <class ...Opnds>
-    requires IsPackBaseOfSimpleOperand<Opnds...>
-    IRFunction(const std::string &func_name, prim_type ret_type, IRGraph &&body, std::unique_ptr<Opnds> && ...args) :
-    IRGraph(std::move(body)), User(prim_type::UINT, 32, 0, args...), ret_type_(ret_type), func_name_(func_name) {}
+    requires IsPackDerivedFromSameType<SimpleOperand, Opnds...>
+    IRFunction(const std::string &func_name, IRGraph &&body, std::unique_ptr<Opnds> && ...args) :
+    IRGraph(std::move(body)), User(std::unique_ptr<IReg>(nullptr), args...), ret_type_(prim_type::NONE), func_name_(func_name) {}
 
     template <class ...Opnds>
-    requires IsPackBaseOfSimpleOperand<Opnds...>
-    IRFunction(const std::string &func_name, prim_type ret_type, IRGraph &&body, Opnds * ...args) :
-    IRGraph(std::move(body)), User(prim_type::UINT, 32, 0, std::unique_ptr<Opnds>(args)...), ret_type_(ret_type), func_name_(func_name) {}
+    requires IsPackDerivedFromSameType<SimpleOperand, Opnds...>
+    IRFunction(const std::string &func_name, IRGraph &&body, Opnds * ...args) :
+    IRGraph(std::move(body)), User(nullptr, args...), ret_type_(prim_type::NONE), func_name_(func_name) {}
 
     template <class ...Opnds>
-    requires IsPackBaseOfSimpleOperand<Opnds...>
-    IRFunction(const std::string &func_name, prim_type ret_type, BasicBlock *body, std::unique_ptr<Opnds> && ...args) :
-    IRGraph(body, this), User(prim_type::UINT, 32, 0, args...), ret_type_(ret_type), func_name_(func_name) {}
+    requires IsPackDerivedFromSameType<SimpleOperand, Opnds...>
+    IRFunction(const std::string &func_name, BasicBlock *body, std::unique_ptr<Opnds> && ...args) :
+    IRGraph(body, this), User(prim_type::UINT, 32, 0, args...), ret_type_(prim_type::NONE), func_name_(func_name) {}
 
     void SetRetType(prim_type ret_type) {
         ret_type_ = ret_type;
