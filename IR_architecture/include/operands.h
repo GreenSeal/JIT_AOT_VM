@@ -31,13 +31,17 @@ public:
         return opnd_type_;
     }
 
+    virtual Operand *clone() const {
+        return new Operand(*this);
+    }
+
     virtual ~Operand() {}
 
 protected:
     Operand(Value *user, opnd_t opnd_type) :
     Value(value_t::opnd), opnd_type_(opnd_type), user_(user) {}
 
-    Operand(const Operand &other) = delete;
+    Operand(const Operand &other) = default;
     Operand &operator=(const Operand &other) = delete;
 
     Operand(Operand &&other) = delete;
@@ -60,9 +64,15 @@ public:
         return bit_lenght_;
     }
 
+    SimpleOperand *clone() const override {
+        return new SimpleOperand(*this);
+    }
+
 protected:
     SimpleOperand(Value *user, prim_type p_type, uint8_t bit_lenght) :
     Operand(user, opnd_t::simple), p_type_(p_type), bit_lenght_(bit_lenght) {}
+
+    SimpleOperand(const SimpleOperand &rhs) = default;
 
     prim_type p_type_;
     uint8_t bit_lenght_;
@@ -126,8 +136,11 @@ requires std::integral<T> || std::floating_point<T>
 class Immediate final : public SimpleOperand {
 public:
     using type = T;
+
     Immediate(prim_type p_type, uint8_t bit_lenght, T value, Value *user = nullptr) :
     SimpleOperand(user, p_type, bit_lenght), value_(value) {}
+
+
 
     T GetValue() const {
         return value_;
@@ -136,6 +149,14 @@ public:
     void SetValue(T value) {
         value_ = value;
     }
+
+    Immediate *clone() const override {
+        return new Immediate<T>(*this);
+    }
+
+protected:
+    Immediate(const Immediate<T> &rhs) = default;
+
 private:
     T value_;
 };
@@ -147,6 +168,29 @@ public:
 
     PhiOperand(Value *user, const std::string &name, SimpleOperand *opnd) :
     Operand(user, opnd_t::phi), opnd_{Label(name), std::unique_ptr<SimpleOperand>(opnd)} {}
+
+    PhiOperand *clone() const override {
+        return new PhiOperand(*this);
+    }
+
+    std::string_view GetLabel() {
+        return opnd_.first.GetName();
+    }
+
+    const std::string_view GetLabel() const {
+        return opnd_.first.GetName();
+    }
+
+    SimpleOperand *GetOperand() {
+        return opnd_.second.get();
+    }
+
+    const SimpleOperand *GetOperand() const {
+        return opnd_.second.get();
+    }
+
+protected:
+    PhiOperand(const PhiOperand &rhs) : Operand(rhs), opnd_{rhs.opnd_.first, rhs.opnd_.second.get()->clone()} {}
 
 private:
     std::pair<Label, std::unique_ptr<SimpleOperand>> opnd_;

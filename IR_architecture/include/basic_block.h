@@ -14,7 +14,7 @@ public:
 
     BasicBlock(IRGraph *graph = nullptr, const std::string &name = "", Instruction *start_inst = nullptr);
 
-    BasicBlock(const BasicBlock &rhs) = delete;
+    BasicBlock(const BasicBlock &rhs);
     BasicBlock &operator=(const BasicBlock &) = delete;
 
     BasicBlock(BasicBlock &&) = delete;

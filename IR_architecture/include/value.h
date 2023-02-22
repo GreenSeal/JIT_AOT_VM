@@ -22,7 +22,7 @@ public:
 protected:
     Value(value_t value_type) : value_type_(value_type) {}
 
-    Value(const Value &other) = delete;
+    Value(const Value &other) : value_type_(other.value_type_) {};
     Value &operator=(const Value &other) = delete;
 
     Value(Value &&other) = delete;

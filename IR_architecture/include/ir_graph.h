@@ -19,7 +19,7 @@ public:
 
     IRGraph(BasicBlock *root = nullptr, IRFunction *func = nullptr);
 
-    IRGraph(const IRGraph &rhs) = delete;
+    IRGraph(const IRGraph &rhs);
     IRGraph &operator=(const IRGraph &) = delete;
 
     IRGraph(IRGraph && other) : func_(std::move(other.func_)),

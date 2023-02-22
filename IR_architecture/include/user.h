@@ -91,7 +91,14 @@ protected:
     }
 
 
-    User(const User &other) = delete;
+    User(const User &rhs) {
+        res_ = std::unique_ptr<IReg>(static_cast<IReg *>(rhs.res_.get()->clone()));
+        size_t idx = 0;
+        for(const auto &opnd : rhs.opnds_) {
+            opnds_.at(idx) = std::unique_ptr<OpndType>(opnd.get()->clone());
+            ++idx;
+        }
+    }
     User& operator=(const User &other) = delete;
 
     User(User &&another) = delete;
@@ -176,13 +183,20 @@ protected:
         }
     }
 
-    User(const User&) = delete;
+protected:
+    User(const User &rhs) {
+        res_ = std::unique_ptr<IReg>(static_cast<IReg *>(rhs.res_.get()->clone()));
+        opnds_.reserve(rhs.opnds_.size());
+        auto emplace_lambda = [this](const auto &opnd){
+            opnds_.emplace_back(opnd.get()->clone());
+        };
+        std::for_each(rhs.opnds_.begin(), rhs.opnds_.end(), emplace_lambda);
+    };
     User& operator=(const User&) = delete;
 
     User(User &&another) = delete;
     User&& operator=(User&&) = delete;
 
-private:
     std::unique_ptr<IReg> res_;
     std::vector<std::unique_ptr<OpndType>> opnds_;
 };

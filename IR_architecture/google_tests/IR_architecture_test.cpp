@@ -420,10 +420,10 @@ TEST(ir_architecture, phi_instruction) {
     auto reg_2 = new IReg{prim_type::UINT, 32, IReg::reg_t::t, 1};
     auto reg_3 = new IReg{prim_type::UINT, 32, IReg::reg_t::t, 2};
     auto reg_4 = new IReg{prim_type::UINT, 32, IReg::reg_t::t, 3};
-    auto PhiInstruction = new PhiInst(reg_1,
-                                      std::pair<Label, std::unique_ptr<SimpleOperand>>{Label("label1"), std::unique_ptr<IReg>(reg_2)},
-                                      std::pair<Label, std::unique_ptr<SimpleOperand>>{Label("label2"), std::unique_ptr<IReg>(reg_3)},
-                                      std::pair<Label, std::unique_ptr<SimpleOperand>>{Label("label3"), std::unique_ptr<IReg>(reg_4)});
+    auto opnd_1 = new PhiOperand(nullptr, "label1", reg_2);
+    auto opnd_2 = new PhiOperand(nullptr, "label2", reg_3);
+    auto opnd_3 = new PhiOperand(nullptr, "label3", reg_4);
+    auto PhiInstruction = new PhiInst(reg_1, opnd_1, opnd_2, opnd_3);
 
     EXPECT_EQ(PhiInstruction->GetLabelAt(0), "label1");
     EXPECT_EQ(PhiInstruction->GetLabelAt(1), "label2");

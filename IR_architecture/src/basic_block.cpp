@@ -20,6 +20,34 @@ BasicBlock::BasicBlock(IRGraph *graph, const std::string &name, Instruction *sta
     last_inst_ = start_inst;
 }
 
+BasicBlock::BasicBlock(const BasicBlock &rhs) {
+    if(rhs.first_inst_ == nullptr) {
+        first_inst_ = nullptr;
+        last_inst_ = nullptr;
+        return;
+    }
+    const Instruction *cur_inst = rhs.first_inst_;
+    Instruction *prev_inst = nullptr;
+    while(cur_inst != nullptr) {
+        Instruction *new_instr = cur_inst->clone();
+        new_instr->SetPrev(prev_inst);
+        if(prev_inst != nullptr) {
+            prev_inst->SetNext(new_instr);
+        }
+        if(cur_inst == rhs.first_inst_) {
+            first_inst_ = new_instr;
+        }
+
+        prev_inst = new_instr;
+        cur_inst = cur_inst->GetNext();
+    }
+    prev_inst->SetNext(nullptr);
+    last_inst_ = prev_inst;
+
+    succ_.clear();
+    predec_.clear();
+}
+
 void BasicBlock::ReplaceInstBack(Instruction *inst) {
     if(inst == nullptr) {
         throw std::invalid_argument("Nullptr given in AddInstBack method of BasicBlock class");

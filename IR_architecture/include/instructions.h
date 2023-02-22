@@ -17,11 +17,9 @@ class Instruction : public ilist_bidirectional_node<Instruction> {
 public:
     Instruction(inst_t type, prim_type ptype) : type_(type), prim_type_(ptype) {}
 
-    Instruction(const Instruction &other) = delete;
-    Instruction &operator=(const Instruction &other) = delete;
-
-    Instruction(Instruction &&other) = delete;
-    Instruction &&operator=(Instruction &&other) = delete;
+    virtual Instruction *clone() const {
+        return new Instruction(*this);
+    }
 
     virtual ~Instruction() {}
 
@@ -43,15 +41,20 @@ public:
         }
     }
 
+private:
+    Instruction(const Instruction &other) : type_(other.type_), prim_type_(other.prim_type_) {};
+    Instruction &operator=(const Instruction &other) = delete;
+
+    Instruction(Instruction &&other) = delete;
+    Instruction &&operator=(Instruction &&other) = delete;
+
+
 protected:
 
     inst_t type_;
     prim_type prim_type_;
 };
 
-
-// TODO: nontrivial initialization of result operand
-// TODO: after that rewrite tests
 template <size_t opnds_num = std::numeric_limits<size_t>::max()>
 class NarySimpleInstr : public Instruction, public User<SimpleOperand, opnds_num> {
 public:
@@ -65,7 +68,13 @@ public:
     NarySimpleInstr(inst_t type, IReg *res, Opnds *... opnd) :
             Instruction(type, res->GetPrimType()), User<SimpleOperand, opnds_num>(res, opnd...) {}
 
-    NarySimpleInstr(const NarySimpleInstr &rhs) = delete;
+    virtual NarySimpleInstr *clone() const override {
+        return new NarySimpleInstr(*this);
+    }
+
+private:
+    NarySimpleInstr(const NarySimpleInstr &rhs) : Instruction(rhs.type_, rhs.prim_type_),
+    User<SimpleOperand, opnds_num>(rhs) {};
     NarySimpleInstr &operator=(const NarySimpleInstr &) = delete;
 
     NarySimpleInstr(NarySimpleInstr &&) = delete;
@@ -84,34 +93,35 @@ public:
         return label_.GetName();
     }
 
+private:
+    Jump(const Jump &rhs) : Instruction(rhs.type_, rhs.prim_type_), label_(rhs.label_) {}
+
 protected:
     Label label_;
 };
-template <class ...Elts>
-concept is_pack_of_phipairs = (std::constructible_from<std::pair<Label, std::unique_ptr<SimpleOperand>>, Elts> && ...);
 
 class PhiInst final : public Instruction,
-        protected User<std::pair<Label, std::unique_ptr<SimpleOperand>>, std::numeric_limits<size_t>::max()> {
-    using PhiPair = OperandType;
+        protected User<PhiOperand, std::numeric_limits<size_t>::max()> {
+    using PhiOpnd = OperandType;
 
 public:
     template <class ...Args>
-    requires is_pack_of_phipairs<Args...>
+    requires IsPackSameType<PhiOpnd, Args...>
     PhiInst(std::unique_ptr<IReg> res, std::unique_ptr<Args> && ...args) : Instruction(inst_t::phi, res->GetPrimType()),
-    User<PhiPair, std::numeric_limits<size_t>::max()>(std::move(res), std::move(args)...) {}
+    User<PhiOpnd, std::numeric_limits<size_t>::max()>(std::move(res), std::move(args)...) {}
 
     template <class ...Args>
-    requires is_pack_of_phipairs<Args...>
-    PhiInst(IReg *res, Args ...args) :
+    requires IsPackSameType<PhiOpnd, Args...>
+    PhiInst(IReg *res, Args *...args) :
     Instruction(inst_t::phi, res->GetPrimType()),
-    User<PhiPair, std::numeric_limits<size_t>::max()>(std::unique_ptr<IReg>(res), std::make_unique<Args>(std::move(args))...) {}
+    User<PhiOpnd, std::numeric_limits<size_t>::max()>(std::unique_ptr<IReg>(res), std::unique_ptr<Args>(args)...) {}
 
     const std::string_view GetLabelAt(size_t idx) const {
-        return GetOpndAt(idx)->first.GetName();
+        return GetOpndAt(idx)->GetLabel();
     }
 
     std::string_view GetLabelAt(size_t idx) {
-        return GetOpndAt(idx)->first.GetName();
+        return GetOpndAt(idx)->GetLabel();
     }
 
     const IReg *GetRes() const {
@@ -123,12 +133,20 @@ public:
     }
 
     const SimpleOperand *GetOperandAt(size_t idx) const {
-        return GetOpndAt(idx)->second.get();
+        return GetOpndAt(idx)->GetOperand();
     }
 
     SimpleOperand *GetOperandAt(size_t idx) {
-        return GetOpndAt(idx)->second.get();
+        return GetOpndAt(idx)->GetOperand();
     }
+
+    virtual PhiInst *clone() const override {
+        return new PhiInst(*this);
+    }
+
+private:
+    PhiInst(const PhiInst &rhs) : Instruction(rhs.type_, rhs.prim_type_),
+    User<PhiOpnd , std::numeric_limits<size_t>::max()>(rhs) {}
 
 };
 
