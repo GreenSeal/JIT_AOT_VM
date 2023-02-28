@@ -12,6 +12,8 @@ template <typename Elt>
 class ilist_bidirectional_node {
 public:
 
+    using node_t = Elt;
+
     Elt *GetPrev() const {
         return prev_;
     }
@@ -20,16 +22,21 @@ public:
         return next_;
     }
 
-    void SetPrev(Elt *elt) {
+    void AssignPrev(Elt *elt) {
         prev_ = elt;
     }
 
-    void SetNext(Elt *elt) {
+    void AssignNext(Elt *elt) {
         next_ = elt;
     }
 
+    void AssignNextAndPrev(Elt *elt) {
+        next_ = elt;
+        elt->AssignPrev(static_cast<Elt *>(this));
+    }
+
     virtual ~ilist_bidirectional_node() {}
-private:
+protected:
     Elt *next_;
     Elt *prev_;
 };
@@ -81,14 +88,14 @@ public:
 
     void AddSuccWithPredec(Elt *elt) {
         succ_.push_back(elt);
-        (*succ_.rend())->AddPredec(this);
+        elt->AddPredec(static_cast<Elt *>(this));
     }
 
     void RemoveSucc(Elt *elt) {
         if(!IsBBSucc(elt)) {
             throw std::invalid_argument("Trying to remove non-existing successor");
         }
-        std::swap(elt, *succ_.rend());
+        std::swap(elt, *succ_.rbegin());
         succ_.pop_back();
     }
 
@@ -96,8 +103,13 @@ public:
         if(!IsBBPredec(elt)) {
             throw std::invalid_argument("Trying to remove non-existing predecessor");
         }
-        std::swap(elt, *predec_.rend());
+        std::swap(elt, *predec_.rbegin());
         predec_.pop_back();
+    }
+
+    void RemoveSuccAndPredec(Elt *elt) {
+        RemoveSucc(elt);
+        elt->RemovePredec(static_cast<Elt *>(this));
     }
 
     typename std::vector<Elt *>::size_type PredecSize() const {
@@ -154,6 +166,9 @@ public:
     }
 
 protected:
+    ilist_graph_node() = default;
+    ilist_graph_node(const ilist_graph_node &) = default;
+
     std::vector<Elt *> predec_;
     std::vector<Elt *> succ_;
 };

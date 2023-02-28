@@ -33,10 +33,10 @@ TEST(ir_architecture, instructions) {
     
     Instruction *base_inst = new Instruction(inst_t::ret, prim_type::NONE);
     Instruction *jump = new Jump("loop");
-    Instruction *unary_inst = new NarySimpleInstr<1>(inst_t::movi,
+    Instruction *unary_inst = new NarySimpleInstr<1>(inst_t::movi, false,
                                                       new IReg(prim_type::INT, 32, IReg::reg_t::t, 0),
                                                       new Immediate<uint32_t>(prim_type::UINT, 32,42));
-    Instruction *binary_inst = new NarySimpleInstr<2>(inst_t::mul,
+    Instruction *binary_inst = new NarySimpleInstr<2>(inst_t::mul, false,
                                                  new IReg(prim_type::INT, 32, IReg::reg_t::t, 0),
                                                  new IReg(prim_type::UINT, 64, IReg::reg_t::t, 0),
                                                  new IReg(prim_type::UINT, 64, IReg::reg_t::t, 1));
@@ -63,12 +63,12 @@ TEST(ir_architecture, basic_block) {
     EXPECT_EQ(empty_bb->begin(), empty_bb->end());
     delete empty_bb;
 
-    auto cmp_inst = new NarySimpleInstr<2>(inst_t::cmp,
+    auto cmp_inst = new NarySimpleInstr<2>(inst_t::cmp, false,
                                            new IReg(prim_type::UINT, 8, IReg::reg_t::t, 0),
                                            new IReg(prim_type::UINT, 32, IReg::reg_t::t, 1),
                                            new IReg(prim_type::UINT, 32, IReg::reg_t::t, 2));
-    auto ja_inst = new Jump("done", inst_t::ja);
-    auto mul_inst = new NarySimpleInstr<2>(inst_t::mul,
+    auto ja_inst = new Jump("done", nullptr, inst_t::ja);
+    auto mul_inst = new NarySimpleInstr<2>(inst_t::mul, false,
                                            new IReg(prim_type::UINT, 32, IReg::reg_t::t, 0),
                                            new IReg(prim_type::UINT, 32, IReg::reg_t::t, 0),
                                            new IReg(prim_type::UINT, 32, IReg::reg_t::t, 1));
@@ -80,10 +80,10 @@ TEST(ir_architecture, basic_block) {
 
     EXPECT_EQ(bb_pushback->GetBBName(), "loop");
 
-    bb_pushback->ReplaceInstBack(cmp_inst);
-    bb_pushback->ReplaceInstBack(ja_inst);
-    bb_pushback->ReplaceInstBack(mul_inst);
-    bb_pushback->ReplaceInstBack(jmp_inst);
+    bb_pushback->ReplaceLastInst(cmp_inst);
+    bb_pushback->ReplaceLastInst(ja_inst);
+    bb_pushback->ReplaceLastInst(mul_inst);
+    bb_pushback->ReplaceLastInst(jmp_inst);
 
     auto bb_pb_it = bb_pushback->begin();
     EXPECT_EQ(static_cast<NarySimpleInstr<2> *>(*bb_pb_it)->GetInstType(), inst_t::cmp);
@@ -112,25 +112,25 @@ TEST(ir_architecture, basic_block) {
 // =====================================================================================================
 
 // =============== Testing forward iteration of bb, created through instruction chain ==================
-    auto cmp_inst_clone = new NarySimpleInstr<2>(inst_t::cmp,
+    auto cmp_inst_clone = new NarySimpleInstr<2>(inst_t::cmp, true,
                                                  new IReg(prim_type::UINT, 8, IReg::reg_t::t, 0),
                                                  new IReg(prim_type::UINT, 32, IReg::reg_t::t, 1),
                                                  new IReg(prim_type::UINT, 32, IReg::reg_t::t, 2));
-    auto ja_inst_clone = new Jump("done", inst_t::ja);
-    auto mul_inst_clone = new NarySimpleInstr<2>(inst_t::mul,
+    auto ja_inst_clone = new Jump("done", nullptr, inst_t::ja);
+    auto mul_inst_clone = new NarySimpleInstr<2>(inst_t::mul, false,
                                                  new IReg(prim_type::INT, 32, IReg::reg_t::t, 0),
                                                  new IReg(prim_type::INT, 32, IReg::reg_t::t, 0),
                                                  new IReg(prim_type::INT, 32, IReg::reg_t::t, 1));
     auto jmp_inst_clone = new Jump("loop");
 
-    cmp_inst_clone->SetNext(ja_inst_clone);
-    ja_inst_clone->SetPrev(cmp_inst_clone);
-    ja_inst_clone->SetNext(mul_inst_clone);
-    mul_inst_clone->SetPrev(ja_inst_clone);
-    mul_inst_clone->SetNext(jmp_inst_clone);
-    jmp_inst_clone->SetPrev(mul_inst_clone);
+    cmp_inst_clone->AssignNext(ja_inst_clone);
+    ja_inst_clone->AssignPrev(cmp_inst_clone);
+    ja_inst_clone->AssignNext(mul_inst_clone);
+    mul_inst_clone->AssignPrev(ja_inst_clone);
+    mul_inst_clone->AssignNext(jmp_inst_clone);
+    jmp_inst_clone->AssignPrev(mul_inst_clone);
 
-    auto bb = new BasicBlock(nullptr, "loop", cmp_inst_clone);
+    auto bb = new BasicBlock(cmp_inst_clone, jmp_inst_clone, "loop", nullptr);
 
     auto bb_it = bb->begin();
 
@@ -165,46 +165,46 @@ TEST(ir_architecture, basic_block) {
 
 TEST(ir_architecture, ir_graph) {
 
-    auto movi_inst1 = new NarySimpleInstr<1>(inst_t::movi,
+    auto movi_inst1 = new NarySimpleInstr<1>(inst_t::movi, false,
                                              new IReg(prim_type::UINT, 64, IReg::reg_t::t, 0),
                                              new Immediate<uint32_t>(prim_type::UINT, 32, 1));
-    auto movi_inst2 = new NarySimpleInstr<1>(inst_t::movi,
+    auto movi_inst2 = new NarySimpleInstr<1>(inst_t::movi, false,
                                              new IReg(prim_type::UINT, 64, IReg::reg_t::t, 1),
                                              new Immediate<uint32_t>(prim_type::UINT, 32,2));
-    auto cast_inst = new NarySimpleInstr<1>(inst_t::u32tou64,
+    auto cast_inst = new NarySimpleInstr<1>(inst_t::u32tou64, false,
                                             new IReg(prim_type::UINT, 64, IReg::reg_t::t, 0),
                                             new IReg(prim_type::UINT, 64, IReg::reg_t::t, 0));
-    auto start_bb = new BasicBlock(nullptr, "start");
+    auto start_bb = new BasicBlock(nullptr, nullptr, "start");
 
-    start_bb->ReplaceInstBack(movi_inst1);
-    start_bb->ReplaceInstBack(movi_inst2);
-    start_bb->ReplaceInstBack(cast_inst);
+    start_bb->ReplaceLastInst(movi_inst1);
+    start_bb->ReplaceLastInst(movi_inst2);
+    start_bb->ReplaceLastInst(cast_inst);
 
-    auto cmp_inst = new NarySimpleInstr<2>(inst_t::cmp,
+    auto cmp_inst = new NarySimpleInstr<2>(inst_t::cmp, true,
                                            new IReg(prim_type::UINT, 8, IReg::reg_t::t, 0),
                                            new IReg(prim_type::UINT, 32, IReg::reg_t::t, 1),
                                            new IReg(prim_type::UINT, 32, IReg::reg_t::t, 2));
     auto ja_inst = new Jump("done");
-    auto mul_inst = new NarySimpleInstr<2>(inst_t::mul,
+    auto mul_inst = new NarySimpleInstr<2>(inst_t::mul, false,
                                            new IReg(prim_type::UINT, 32, IReg::reg_t::t, 0),
                                            new IReg(prim_type::UINT, 64, IReg::reg_t::t, 0),
                                            new IReg(prim_type::UINT, 64, IReg::reg_t::t, 1));
     auto jmp_inst = new Jump("loop");
 
-    auto loop_bb1 = new BasicBlock(nullptr, "loop1");
-    auto loop_bb2 = new BasicBlock(nullptr, "loop2");
+    auto loop_bb1 = new BasicBlock(nullptr, nullptr, "loop1");
+    auto loop_bb2 = new BasicBlock(nullptr, nullptr, "loop2");
 
-    loop_bb1->ReplaceInstBack(cmp_inst);
-    loop_bb1->ReplaceInstBack(ja_inst);
-    loop_bb2->ReplaceInstBack(mul_inst);
-    loop_bb2->ReplaceInstBack(jmp_inst);
+    loop_bb1->ReplaceLastInst(cmp_inst);
+    loop_bb1->ReplaceLastInst(ja_inst);
+    loop_bb2->ReplaceLastInst(mul_inst);
+    loop_bb2->ReplaceLastInst(jmp_inst);
 
-    auto ret_inst = new NarySimpleInstr<1>(inst_t::ret,
+    auto ret_inst = new NarySimpleInstr<1>(inst_t::ret, true,
                                            new IReg(prim_type::INT, 32, IReg::reg_t::g, 0),
                                            new IReg(prim_type::INT, 32, IReg::reg_t::t, 0));
 
-    auto done_bb = new BasicBlock(nullptr, "done");
-    done_bb->ReplaceInstBack(ret_inst);
+    auto done_bb = new BasicBlock(nullptr, nullptr, "done");
+    done_bb->ReplaceLastInst(ret_inst);
 // ========================== Testing IRGraph creation with ready CFG ========================
     start_bb->AddSucc(loop_bb1);
     loop_bb1->AddPredec(loop_bb2);
@@ -253,46 +253,46 @@ TEST(ir_architecture, ir_graph) {
 
 // =========== Testing IRGraph creation using AddBBInGraph and AddEdge interface ===========
 
-    auto movi_inst1_clone = new NarySimpleInstr<1>(inst_t::movi,
+    auto movi_inst1_clone = new NarySimpleInstr<1>(inst_t::movi, false,
                                                    new IReg(prim_type::UINT, 32, IReg::reg_t::t, 0),
                                                    new Immediate<uint32_t>(prim_type::UINT, 32,1));
-    auto movi_inst2_clone = new NarySimpleInstr<1>(inst_t::movi,
+    auto movi_inst2_clone = new NarySimpleInstr<1>(inst_t::movi, false,
                                                    new IReg(prim_type::UINT, 32, IReg::reg_t::t, 1),
                                                    new Immediate<uint32_t>(prim_type::UINT, 32,2));
-    auto cast_inst_clone = new NarySimpleInstr<1>(inst_t::u32tou64,
+    auto cast_inst_clone = new NarySimpleInstr<1>(inst_t::u32tou64, false,
                                                   new IReg(prim_type::UINT, 32, IReg::reg_t::t, 0),
                                                   new IReg(prim_type::UINT, 32, IReg::reg_t::t, 0));
-    auto start_bb_clone = new BasicBlock(nullptr, "start");
+    auto start_bb_clone = new BasicBlock(nullptr, nullptr, "start");
 
-    start_bb_clone->ReplaceInstBack(movi_inst1_clone);
-    start_bb_clone->ReplaceInstBack(movi_inst2_clone);
-    start_bb_clone->ReplaceInstBack(cast_inst_clone);
+    start_bb_clone->ReplaceLastInst(movi_inst1_clone);
+    start_bb_clone->ReplaceLastInst(movi_inst2_clone);
+    start_bb_clone->ReplaceLastInst(cast_inst_clone);
 
-    auto cmp_inst_clone = new NarySimpleInstr<2>(inst_t::cmp,
+    auto cmp_inst_clone = new NarySimpleInstr<2>(inst_t::cmp, true,
                                                  new IReg(prim_type::UINT, 8, IReg::reg_t::t, 1),
                                                  new IReg(prim_type::UINT, 32, IReg::reg_t::t, 1),
                                                  new IReg(prim_type::UINT, 32, IReg::reg_t::t, 2));
     auto ja_inst_clone = new Jump("done");
-    auto mul_inst_clone = new NarySimpleInstr<2>(inst_t::mul,
+    auto mul_inst_clone = new NarySimpleInstr<2>(inst_t::mul, false,
                                                  new IReg(prim_type::UINT, 32, IReg::reg_t::t, 0),
                                                  new IReg(prim_type::UINT, 32, IReg::reg_t::t, 0),
                                                  new IReg(prim_type::UINT, 32, IReg::reg_t::t, 1));
     auto jmp_inst_clone = new Jump("loop");
 
-    auto loop_bb1_clone = new BasicBlock(nullptr, "loop1");
-    auto loop_bb2_clone = new BasicBlock(nullptr, "loop2");
+    auto loop_bb1_clone = new BasicBlock(nullptr, nullptr, "loop1");
+    auto loop_bb2_clone = new BasicBlock(nullptr, nullptr, "loop2");
 
-    loop_bb1_clone->ReplaceInstBack(cmp_inst_clone);
-    loop_bb1_clone->ReplaceInstBack(ja_inst_clone);
-    loop_bb2_clone->ReplaceInstBack(mul_inst_clone);
-    loop_bb2_clone->ReplaceInstBack(jmp_inst_clone);
+    loop_bb1_clone->ReplaceLastInst(cmp_inst_clone);
+    loop_bb1_clone->ReplaceLastInst(ja_inst_clone);
+    loop_bb2_clone->ReplaceLastInst(mul_inst_clone);
+    loop_bb2_clone->ReplaceLastInst(jmp_inst_clone);
 
-    auto ret_inst_clone = new NarySimpleInstr<1>(inst_t::ret,
+    auto ret_inst_clone = new NarySimpleInstr<1>(inst_t::ret, true,
                                                  new IReg(prim_type::UINT, 32, IReg::reg_t::g, 1),
                                                  new IReg(prim_type::UINT, 32, IReg::reg_t::t, 0));
 
-    auto done_bb_clone = new BasicBlock(nullptr, "done");
-    done_bb_clone->ReplaceInstBack(ret_inst_clone);
+    auto done_bb_clone = new BasicBlock(nullptr, nullptr, "done");
+    done_bb_clone->ReplaceLastInst(ret_inst_clone);
 
     auto ir_graph_pushback = new IRGraph();
 
@@ -306,16 +306,6 @@ TEST(ir_architecture, ir_graph) {
     ir_graph_pushback->AddEdge(loop_bb1_clone, done_bb_clone);
     ir_graph_pushback->AddEdge(loop_bb2_clone, loop_bb1_clone);
     ir_graph_pushback->AddEdge(loop_bb2_clone, done_bb_clone);
-//    root->AddSucc(loop_bb1_clone);
-//    loop_bb1_clone->AddPredec(root);
-//    loop_bb1_clone->AddSucc(loop_bb2_clone);
-//    loop_bb2_clone->AddPredec(loop_bb1_clone);
-//    loop_bb1_clone->AddSucc(done_bb_clone);
-//    done_bb_clone->AddPredec(loop_bb1_clone);
-//    loop_bb2_clone->AddSucc(loop_bb1_clone);
-//    loop_bb1_clone->AddPredec(loop_bb2_clone);
-//    loop_bb2_clone->AddSucc(done_bb_clone);
-//    done_bb_clone->AddPredec(loop_bb2_clone);
 
     EXPECT_EQ(ir_graph_pushback->IsBBInGraph(start_bb_clone), true);
     EXPECT_EQ(ir_graph_pushback->IsBBInGraph(loop_bb1_clone), true);
@@ -349,45 +339,103 @@ TEST(ir_architecture, ir_graph) {
     delete ir_graph_pushback;
 }
 
+TEST(ir_architecture, ir_graph_inst_list) {
+    // Testing ir_graph creation with list of instructions
+    auto movi_inst1 = new NarySimpleInstr<1>(inst_t::movi, false,
+                                             new IReg(prim_type::UINT, 64, IReg::reg_t::t, 0),
+                                             new Immediate<uint32_t>(prim_type::UINT, 32, 1));
+    auto movi_inst2 = new NarySimpleInstr<1>(inst_t::movi, false,
+                                             new IReg(prim_type::UINT, 64, IReg::reg_t::t, 1),
+                                             new Immediate<uint32_t>(prim_type::UINT, 32,2));
+    auto cast_inst = new NarySimpleInstr<1>(inst_t::u32tou64, false,
+                                            new IReg(prim_type::UINT, 64, IReg::reg_t::t, 0),
+                                            new IReg(prim_type::UINT, 64, IReg::reg_t::t, 0));
+
+    auto cmp_inst = new NarySimpleInstr<2>(inst_t::cmp, true,
+                                           new IReg(prim_type::UINT, 8, IReg::reg_t::t, 0),
+                                           new IReg(prim_type::UINT, 32, IReg::reg_t::t, 1),
+                                           new IReg(prim_type::UINT, 32, IReg::reg_t::t, 2));
+    auto mul_inst = new NarySimpleInstr<2>(inst_t::mul, false,
+                                           new IReg(prim_type::UINT, 32, IReg::reg_t::t, 0),
+                                           new IReg(prim_type::UINT, 64, IReg::reg_t::t, 0),
+                                           new IReg(prim_type::UINT, 64, IReg::reg_t::t, 1));
+    auto ret_inst = new NarySimpleInstr<1>(inst_t::ret, false,
+                                           new IReg(prim_type::INT, 32, IReg::reg_t::g, 0),
+                                           new IReg(prim_type::INT, 32, IReg::reg_t::t, 0));
+    auto jmp_inst = new Jump("loop", cmp_inst);
+    auto ja_inst = new Jump("done", ret_inst, inst_t::ja);
+    movi_inst1->AssignNextAndPrev(movi_inst2);
+    movi_inst2->AssignNextAndPrev(cast_inst);
+    cast_inst->AssignNextAndPrev(cmp_inst);
+    cmp_inst->AssignNextAndPrev(ja_inst);
+    ja_inst->AssignNextAndPrev(mul_inst);
+    mul_inst->AssignNextAndPrev(jmp_inst);
+    jmp_inst->AssignNextAndPrev(ret_inst);
+
+    IRGraph ir_graph(movi_inst1);
+
+    auto *first_bb = ir_graph.GetRoot();
+    auto *second_bb = first_bb->GetFirstSucc();
+    auto *third_bb = second_bb->GetFirstSucc();
+    auto *forth_bb = second_bb->GetSecondSucc();
+
+    EXPECT_EQ(ir_graph.IsBBInGraph(first_bb), true);
+    EXPECT_EQ(ir_graph.IsBBInGraph(second_bb), true);
+    EXPECT_EQ(ir_graph.IsBBInGraph(third_bb), true);
+    EXPECT_EQ(ir_graph.IsBBInGraph(forth_bb), true);
+
+    EXPECT_EQ(ir_graph.IsBBsConnected(first_bb, second_bb), true);
+    EXPECT_EQ(ir_graph.IsBBsConnected(second_bb, third_bb), true);
+    EXPECT_EQ(ir_graph.IsBBsConnected(second_bb, forth_bb), true);
+    EXPECT_EQ(ir_graph.IsBBsConnected(third_bb, second_bb), true);
+
+    EXPECT_EQ(ir_graph.IsBBsConnected(first_bb, third_bb), false);
+    EXPECT_EQ(ir_graph.IsBBsConnected(second_bb, first_bb), false);
+    EXPECT_EQ(ir_graph.IsBBsConnected(forth_bb, third_bb), false);
+    EXPECT_EQ(ir_graph.IsBBsConnected(forth_bb, second_bb), false);
+    EXPECT_EQ(ir_graph.IsBBsConnected(third_bb, first_bb), false);
+    EXPECT_EQ(ir_graph.IsBBsConnected(third_bb, forth_bb), false);
+}
+
 TEST(ir_architecture, ir_function) {
-    auto movi_inst1 = new NarySimpleInstr<2>(inst_t::movi,
+    auto movi_inst1 = new NarySimpleInstr<2>(inst_t::movi, false,
                                              new IReg(prim_type::UINT, 32, IReg::reg_t::t, 0),
                                              new Immediate<uint32_t>(prim_type::UINT, 32,1));
-    auto movi_inst2 = new NarySimpleInstr<1>(inst_t::movi,
+    auto movi_inst2 = new NarySimpleInstr<1>(inst_t::movi, false,
                                              new IReg(prim_type::UINT, 32, IReg::reg_t::t, 1),
                                              new Immediate<uint32_t>(prim_type::UINT, 32,2));
-    auto cast_inst = new NarySimpleInstr<1>(inst_t::u32tou64,
+    auto cast_inst = new NarySimpleInstr<1>(inst_t::u32tou64, false,
                                             new IReg(prim_type::UINT, 32, IReg::reg_t::t, 0),
                                             new IReg(prim_type::INT, 32, IReg::reg_t::t, 0));
-    auto start_bb = new BasicBlock(nullptr, "start");
-    start_bb->ReplaceInstBack(movi_inst1);
-    start_bb->ReplaceInstBack(movi_inst2);
-    start_bb->ReplaceInstBack(cast_inst);
+    auto start_bb = new BasicBlock(nullptr, nullptr, "start");
+    start_bb->ReplaceLastInst(movi_inst1);
+    start_bb->ReplaceLastInst(movi_inst2);
+    start_bb->ReplaceLastInst(cast_inst);
 
-    auto cmp_inst = new NarySimpleInstr<2>(inst_t::cmp,
+    auto cmp_inst = new NarySimpleInstr<2>(inst_t::cmp, true,
                                            new IReg(prim_type::UINT, 64, IReg::reg_t::t, 3),
                                            new IReg(prim_type::UINT, 32, IReg::reg_t::t, 1),
                                            new IReg(prim_type::UINT, 32, IReg::reg_t::t, 2));
     auto ja_inst = new Jump("done");
-    auto mul_inst = new NarySimpleInstr<2>(inst_t::mul,
+    auto mul_inst = new NarySimpleInstr<2>(inst_t::mul, false,
                                            new IReg(prim_type::UINT, 32, IReg::reg_t::t, 0),
                                            new IReg(prim_type::UINT, 32, IReg::reg_t::t, 0),
                                            new IReg(prim_type::UINT, 32, IReg::reg_t::t, 1));
     auto jmp_inst = new Jump("loop");
 
-    auto loop_bb1 = new BasicBlock(nullptr, "loop1");
-    auto loop_bb2 = new BasicBlock(nullptr, "loop2");
-    loop_bb1->ReplaceInstBack(cmp_inst);
-    loop_bb1->ReplaceInstBack(ja_inst);
-    loop_bb2->ReplaceInstBack(mul_inst);
-    loop_bb2->ReplaceInstBack(jmp_inst);
+    auto loop_bb1 = new BasicBlock(nullptr, nullptr, "loop1");
+    auto loop_bb2 = new BasicBlock(nullptr, nullptr, "loop2");
+    loop_bb1->ReplaceLastInst(cmp_inst);
+    loop_bb1->ReplaceLastInst(ja_inst);
+    loop_bb2->ReplaceLastInst(mul_inst);
+    loop_bb2->ReplaceLastInst(jmp_inst);
 
-    auto ret_inst = new NarySimpleInstr<1>(inst_t::ret,
+    auto ret_inst = new NarySimpleInstr<1>(inst_t::ret, true,
                                            new IReg(prim_type::UINT, 32, IReg::reg_t::g, 0),
                                            new IReg(prim_type::UINT, 32, IReg::reg_t::t, 0));
 
-    auto done_bb = new BasicBlock(nullptr, "done");
-    done_bb->ReplaceInstBack(ret_inst);
+    auto done_bb = new BasicBlock(nullptr, nullptr, "done");
+    done_bb->ReplaceLastInst(ret_inst);
 
     start_bb->AddSucc(loop_bb1);
     loop_bb1->AddPredec(loop_bb2);
@@ -403,16 +451,18 @@ TEST(ir_architecture, ir_function) {
     SimpleOperand *arg = new IReg(prim_type::INT, 32, IReg::reg_t::t, 0);
 
     IRFunction func("fact", start_bb, arg);
-    auto first_bb = func.GetRoot();
+    auto first_bb = func.GetBody()->GetRoot();
     auto second_bb = first_bb->GetFirstSucc();
     auto third_bb = second_bb->GetFirstSucc();
     auto forth_bb = second_bb->GetSecondSucc();
 
-    EXPECT_EQ(func.IsBBsConnected(first_bb, second_bb), true);
-    EXPECT_EQ(func.IsBBsConnected(second_bb, third_bb), true);
-    EXPECT_EQ(func.IsBBsConnected(second_bb, forth_bb), true);
-    EXPECT_EQ(func.IsBBsConnected(third_bb, second_bb), true);
-    EXPECT_EQ(func.IsBBsConnected(third_bb, forth_bb), true);
+    auto *body = func.GetBody();
+
+    EXPECT_EQ(body->IsBBsConnected(first_bb, second_bb), true);
+    EXPECT_EQ(body->IsBBsConnected(second_bb, third_bb), true);
+    EXPECT_EQ(body->IsBBsConnected(second_bb, forth_bb), true);
+    EXPECT_EQ(body->IsBBsConnected(third_bb, second_bb), true);
+    EXPECT_EQ(body->IsBBsConnected(third_bb, forth_bb), true);
 }
 
 TEST(ir_architecture, phi_instruction) {

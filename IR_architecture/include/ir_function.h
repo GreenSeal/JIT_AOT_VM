@@ -11,23 +11,23 @@
 
 class MethodInfo {};
 
-class IRFunction : public IRGraph, protected User<SimpleOperand, std::numeric_limits<size_t>::max()> {
+class IRFunction : protected User<SimpleOperand, std::numeric_limits<size_t>::max()> {
 public:
 
     template <class ...Opnds>
     requires IsPackDerivedFromSameType<SimpleOperand, Opnds...>
-    IRFunction(const std::string &func_name, IRGraph &&body, std::unique_ptr<Opnds> && ...args) :
-    IRGraph(std::move(body)), User(std::unique_ptr<IReg>(nullptr), args...), ret_type_(prim_type::NONE), func_name_(func_name) {}
+    IRFunction(const std::string &func_name, std::unique_ptr<IRGraph> &&body, std::unique_ptr<Opnds> && ...args) :
+    User(std::unique_ptr<IReg>(nullptr), args...), func_graph_(std::move(body)), ret_type_(prim_type::NONE), func_name_(func_name) {}
 
     template <class ...Opnds>
     requires IsPackDerivedFromSameType<SimpleOperand, Opnds...>
-    IRFunction(const std::string &func_name, IRGraph &&body, Opnds * ...args) :
-    IRGraph(std::move(body)), User(nullptr, args...), ret_type_(prim_type::NONE), func_name_(func_name) {}
+    IRFunction(const std::string &func_name, Instruction *first, Opnds * ...args) :
+    User(nullptr, args...), func_graph_(std::make_unique<IRGraph>(first, this)), ret_type_(prim_type::NONE), func_name_(func_name) {}
 
     template <class ...Opnds>
     requires IsPackDerivedFromSameType<SimpleOperand, Opnds...>
-    IRFunction(const std::string &func_name, BasicBlock *body, std::unique_ptr<Opnds> && ...args) :
-    IRGraph(body, this), User(prim_type::UINT, 32, 0, args...), ret_type_(prim_type::NONE), func_name_(func_name) {}
+    IRFunction(const std::string &func_name, BasicBlock *body, Opnds *...args) :
+    User(nullptr, args...), func_graph_(std::make_unique<IRGraph>(body, this)), ret_type_(prim_type::NONE), func_name_(func_name) {}
 
     void SetRetType(prim_type ret_type) {
         ret_type_ = ret_type;
@@ -47,13 +47,23 @@ public:
 
     const SimpleOperand *GetArgAt(size_t idx) const {
         return GetOpndAt(idx);
-    };
+    }
 
     SimpleOperand *GetArgAt(size_t idx) {
         return GetOpndAt(idx);
     }
 
+    const IRGraph *GetBody() const {
+        return func_graph_.get();
+    }
+
+    IRGraph *GetBody() {
+        return func_graph_.get();
+    }
+
 private:
+
+    std::unique_ptr<IRGraph> func_graph_;
     prim_type ret_type_;
     std::string func_name_;
 };

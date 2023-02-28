@@ -4,109 +4,120 @@
 
 #include "ir_graph.h"
 
-IRGraph::IRGraph(BasicBlock *root, IRFunction *func) : func_(func), root_(nullptr) {
-    if(root != nullptr) {
-
-        // first we go around all the vertices of the graph using BFS algorithm and copy them
-        // ==================================================================================
-
-        std::unordered_set<BasicBlock*> explored_bbs;
-        std::queue<BasicBlock*> bbs_to_go_through;
-
-        bbs_to_go_through.push(root);
-        explored_bbs.insert(root);
-
-        while(!bbs_to_go_through.empty()) {
-            auto cur_bb = bbs_to_go_through.front();
-            bbs_to_go_through.pop();
-
-            bb_set_.insert(cur_bb);
-
-            for(auto it = cur_bb->GetSuccBegin(), end = cur_bb->GetSuccEnd()/*size_t idx = 0*/; it != end; ++it) {
-                if(!explored_bbs.contains(*it)) {
-                    bbs_to_go_through.push(*it);
-                    explored_bbs.insert(*it);
-                }
-            }
-        }
-
-        // ==================================================================================
-        root_ = root;
-    }
-}
-
-//IRGraph::IRGraph(const IRGraph &rhs) {
-//    if(rhs.root_ != nullptr) {
+//IRGraph::IRGraph(BasicBlock *root, IRFunction *func) : func_(func), root_(nullptr) {
+//    if(root != nullptr) {
 //
 //        // first we go around all the vertices of the graph using BFS algorithm and copy them
 //        // ==================================================================================
-//        std::unordered_map<const BasicBlock*, BasicBlock*> old_to_new_map;
 //
-//        std::unordered_set<const BasicBlock*> explored_old_bbs;
-//        std::queue<const BasicBlock*> bbs_to_copy;
+//        std::unordered_set<BasicBlock*> explored_bbs;
+//        std::queue<BasicBlock*> bbs_to_go_through;
 //
-//        bbs_to_copy.push(rhs.root_);
-//        explored_old_bbs.insert(rhs.root_);
+//        bbs_to_go_through.push(root);
+//        explored_bbs.insert(root);
 //
-//        while(!bbs_to_copy.empty()) {
-//            auto old_bb = bbs_to_copy.front();
-//            bbs_to_copy.pop();
+//        while(!bbs_to_go_through.empty()) {
+//            auto cur_bb = bbs_to_go_through.front();
+//            bbs_to_go_through.pop();
 //
-//            BasicBlock *new_bb = old_bb->clone();
-//            old_to_new_map[old_bb] = new_bb;
-//            bb_set_.insert(new_bb);
+//            bb_set_.insert(cur_bb);
 //
-//            for(auto it = old_bb->GetSuccBegin(), end = old_bb->GetSuccEnd(); it != end; ++it) {
-//                if(!explored_old_bbs.contains(*it)) {
-//                    bbs_to_copy.push(*it);
-//                    explored_old_bbs.insert(*it);
+//            for(auto it = cur_bb->GetSuccBegin(), end = cur_bb->GetSuccEnd()/*size_t idx = 0*/; it != end; ++it) {
+//                if(!explored_bbs.contains(*it)) {
+//                    bbs_to_go_through.push(*it);
+//                    explored_bbs.insert(*it);
 //                }
 //            }
 //        }
 //
 //        // ==================================================================================
-//
-//        // then fill adjacency list using again BFS
-//        // ==================================================================================
-//        explored_old_bbs.clear();
-//
-//        bbs_to_copy.push(rhs.root_);
-//        explored_old_bbs.insert(rhs.root_);
-//
-//        while(!bbs_to_copy.empty()) {
-//            auto old_bb = bbs_to_copy.front();
-//            bbs_to_copy.pop();
-//
-//            BasicBlock *new_bb = old_to_new_map.at(old_bb);
-//            for(auto it = old_bb->GetPredecBegin(), end = old_bb->GetPredecEnd(); it != end; ++it) {
-//                BasicBlock *old_pred = *it;
-//                BasicBlock *new_pred = old_to_new_map.at(old_pred);
-//                new_bb->AddPredec(new_pred);
-//            }
-//
-//            for(auto it = old_bb->GetSuccBegin(), end = old_bb->GetSuccEnd(); it != end; ++it) {
-//                BasicBlock *old_succ = *it;
-//                BasicBlock *new_succ = old_to_new_map.at(old_succ);
-//                new_bb->AddSucc(new_succ);
-//
-//                if(!explored_old_bbs.contains(old_succ)) {
-//                    bbs_to_copy.push(old_succ);
-//                    explored_old_bbs.insert(old_succ);
-//                }
-//            }
-//        }
-//        // ==================================================================================
-//        root_ = old_to_new_map.at(rhs.root_);
+//        root_ = root;
 //    }
 //}
 
+IRGraph::IRGraph(Instruction *first, IRFunction *func) : func_(func) {
+    CreateIRGraphFromInstList(first);
+}
 
-/*void IRGraph::CreateAndInsertBBBack(Instruction *start_instr, const std::string &label) {
-    auto *new_bb = new BasicBlock(this, label, start_instr);
+IRGraph::IRGraph(const IRGraph &rhs) {
+    if(rhs.first_ == nullptr) {
+        CreateIRGraphFromInstList(nullptr);
+    }
+    Instruction *first = rhs.first_->clone();
+    Instruction *prev = first;
+    Instruction *walker = rhs.first_->GetNext();
 
-    root_->AddSucc(new_bb);
-    new_bb->AddPredec(root_);
-}*/
+    while(walker != nullptr) {
+        Instruction *cloned = walker->clone();
+        prev->AssignNextAndPrev(cloned);
+        walker = walker->GetNext();
+        prev = cloned;
+    }
+
+    CreateIRGraphFromInstList(first);
+}
+
+void IRGraph::CreateIRGraphFromInstList(Instruction *first) {
+    size_t inst_cnt = 0;
+    const size_t MAX_INST_IN_BB = 10;
+    std::vector<BasicBlock *> bbs_in_order;
+
+    Instruction *walker = first;
+    Instruction *first_in_bb = walker;
+
+    for(;walker != nullptr; walker = walker->GetNext()) {
+        if(inst_cnt == 0)
+            first_in_bb = walker;
+
+        if(inst_cnt == MAX_INST_IN_BB || IsJumpInst(walker) || IsExitInst(walker) ||
+        walker->GetNext() == nullptr || walker->GetNext()->IsJumpDest()) {
+            auto *new_bb = new BasicBlock(first_in_bb, walker, "", this);
+            bb_set_.insert(new_bb);
+            bbs_in_order.push_back(new_bb);
+            inst_cnt = 0;
+        } else {
+            inst_cnt++;
+        }
+    }
+
+    for(size_t i = 0; i < bbs_in_order.size(); ++i) {
+        auto *cur_bb = bbs_in_order[i];
+
+        if(IsJumpInst(cur_bb->GetLastInst())) {
+            auto *last_inst = cur_bb->GetLastInst();
+            switch (last_inst->GetInstType()) {
+                case inst_t::jmp: {
+                    auto *jump = static_cast<Jump *>(last_inst);
+                    cur_bb->AddSuccWithPredec(jump->GetInstToJump()->GetParentBB());
+                    break;
+                }
+                case inst_t::ja: {
+                    auto *ja = static_cast<Jump *>(last_inst);
+                    cur_bb->AddSuccWithPredec(bbs_in_order.at(i+1));
+                    cur_bb->AddSuccWithPredec(ja->GetInstToJump()->GetParentBB());
+                    break;
+                }
+                default:;
+            }
+        } else if(IsExitInst(cur_bb->GetLastInst())) {
+            // do nothing
+        } else {
+            if(i != bbs_in_order.size()-1) {
+                cur_bb->AddSuccWithPredec(bbs_in_order[i+1]);
+            }
+        }
+    }
+
+    if(bbs_in_order.empty()) {
+        root_ = nullptr;
+        first_ = nullptr;
+        last_ = nullptr;
+    } else {
+        root_ = bbs_in_order[0];
+        first_ = bbs_in_order[0]->GetFirstInst();
+        last_ = bbs_in_order[bbs_in_order.size()-1]->GetLastInst();
+    }
+}
 
 bool IRGraph::IsBBsConnected(BasicBlock *bb, BasicBlock *bb_succ) const {
     return bb->IsBBSucc(bb_succ);
@@ -124,5 +135,6 @@ void IRGraph::AddBBToBegin(BasicBlock *bb) {
     root_ = bb;
     bb_set_.insert(root_);
 }
+
 
 

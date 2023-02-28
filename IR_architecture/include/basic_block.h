@@ -9,10 +9,27 @@
 class IRGraph;
 class Loop;
 
+inline bool IsJumpInst(const Instruction *inst) {
+    switch(inst->GetInstType()) {
+        case inst_t::jmp:
+        case inst_t::ja:
+            return true;
+        default: return false;
+    }
+}
+
+inline bool IsExitInst(const Instruction *inst) {
+    switch (inst->GetInstType()) {
+        case inst_t::ret:
+            return true;
+        default: return false;
+    }
+}
+
 class BasicBlock : public ilist_graph_node<BasicBlock> {
 public:
 
-    BasicBlock(IRGraph *graph = nullptr, const std::string &name = "", Instruction *start_inst = nullptr);
+    BasicBlock(Instruction *start_inst = nullptr, Instruction *end_inst = nullptr, const std::string &name = "", IRGraph *graph = nullptr);
 
     BasicBlock(const BasicBlock &rhs);
     BasicBlock &operator=(const BasicBlock &) = delete;
@@ -94,28 +111,33 @@ public:
     const_iterator end() const {
         return const_iterator();
     }
-    void InsertInstBack(Instruction *inst) {
-        last_inst_->SetNext(inst);
-        inst->SetPrev(last_inst_);
-        last_inst_ = inst;
-    }
 
-    void InsertInstForward(Instruction *inst) {
-        first_inst_->SetPrev(inst);
-        inst->SetNext(first_inst_);
-        first_inst_ = inst;
-    }
-
-    void ReplaceInstBack(Instruction *inst);
+    void InsertInstBack(Instruction *inst);
+    void InsertInstForward(Instruction *inst);
 
     const Instruction *GetFirstInst() const {
         return first_inst_;
     }
 
-    void SetFirstInst(Instruction *first_inst);
-    void SetLastInst(Instruction *last_inst);
+    Instruction *GetFirstInst() {
+        return first_inst_;
+    }
+
+    void AssignFirstInst(Instruction *first_inst) {
+        first_inst_ = first_inst;
+    }
+    void AssignLastInst(Instruction *last_inst) {
+        last_inst_ = last_inst;
+    };
+
+    Instruction *ReplaceFirstInst(Instruction *first_inst);
+    Instruction *ReplaceLastInst(Instruction *last_inst);
 
     const Instruction *GetLastInst() const {
+        return last_inst_;
+    }
+
+    Instruction *GetLastInst() {
         return last_inst_;
     }
 
@@ -129,6 +151,10 @@ public:
 
     IRGraph *GetIRGraph() const {
         return graph_;
+    }
+
+    BasicBlock *clone() const {
+        return new BasicBlock(*this);
     }
 
     void SetIdom(BasicBlock *idom) {
@@ -177,13 +203,7 @@ public:
              Instruction removing
              */
 
-    virtual ~BasicBlock() {
-        while(first_inst_ != nullptr) {
-            auto* next = first_inst_->GetNext();
-            delete first_inst_;
-            first_inst_ = next;
-        }
-    }
+    virtual ~BasicBlock() = default;
 
     void SetMarkerAt(size_t idx, size_t value) {
         if(idx < markers_.markers.size()) {
@@ -215,6 +235,17 @@ public:
 
     Loop *GetLoop() const {
         return loop_;
+    }
+
+    size_t GetSize() const {
+        Instruction *walker = first_inst_;
+        size_t count = 0;
+        while(walker != nullptr) {
+            ++count;
+            walker = walker->GetNext();
+        }
+
+        return count;
     }
 
 protected:

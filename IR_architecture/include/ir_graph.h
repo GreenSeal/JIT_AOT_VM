@@ -17,17 +17,47 @@ class IRGraph {
 public:
     using sztype = size_t;
 
-    IRGraph(BasicBlock *root = nullptr, IRFunction *func = nullptr);
+    //IRGraph(BasicBlock *root = nullptr, IRFunction *func = nullptr);
+    IRGraph(Instruction *first, IRFunction *func = nullptr);
 
     IRGraph(const IRGraph &rhs);
     IRGraph &operator=(const IRGraph &) = delete;
 
-    IRGraph(IRGraph && other) : func_(std::move(other.func_)),
+    IRGraph(IRGraph &&other) : func_(std::move(other.func_)),
     bb_set_(std::move(other.bb_set_)), root_(std::move(other.root_)) {};
 
     IRGraph &operator=(IRGraph &&) = delete;
 
-    // void CreateAndInsertBBBack(Instruction *start_instr, const std::string &label = "");
+    Instruction *GetFirstInst() {
+        return first_;
+    }
+
+    const Instruction *GetFirstInst() const {
+        return first_;
+    }
+
+    void AssignFirstInst(Instruction *inst) {
+        first_ = inst;
+    }
+
+    Instruction *GetLastInst() {
+        return last_;
+    }
+
+    const Instruction *GetLastInst() const {
+        return last_;
+    }
+
+    void AssignLastInst(Instruction *inst) {
+        last_ = inst;
+    }
+
+    // TODO: implement these methods
+//    void InsertInstForward(Instruction *inst);
+//    void InsertInstBack(Instruction *inst);
+
+//    Instruction *ReplaceFirstInst();
+//    Instruction *ReplaceLastInst();
 
     bool IsBBsConnected(BasicBlock *bb, BasicBlock *bb_succ) const;
     void AddBBToBegin(BasicBlock *bb);
@@ -78,6 +108,36 @@ public:
         throw std::invalid_argument("Trying to remove non-existing edge at RemoveEdge method");
     }
 
+    // TODO: rewrite in terms of move semantic and with idea that bb is just external structure on list of instructions
+    void SplitBBInTwo(BasicBlock *bb, Instruction *inst) {
+        if(bb->GetLastInst() != inst) {
+            auto *new_bb = new BasicBlock();
+
+            auto *fst_succ = bb->GetFirstSucc();
+            auto *snd_succ = bb->GetSecondSucc();
+
+            if(!fst_succ) {
+                bb->RemoveSuccAndPredec(fst_succ);
+                new_bb->AddSuccWithPredec(fst_succ);
+            }
+            if(!snd_succ) {
+                bb->RemoveSuccAndPredec(snd_succ);
+                new_bb->AddSuccWithPredec(snd_succ);
+            }
+            bb->AddSuccWithPredec(new_bb);
+
+            new_bb->AssignFirstInst(inst->GetNext());
+            new_bb->AssignLastInst(bb->GetLastInst());
+            bb->AssignLastInst(inst);
+
+            Instruction *walker = new_bb->GetFirstInst();
+            while(walker != nullptr) {
+                walker->SetParentBB(new_bb);
+                walker = walker->GetNext();
+            }
+        }
+    }
+
     BasicBlock *GetRoot() {
         return root_;
     }
@@ -86,10 +146,40 @@ public:
         return root_;
     }
 
+    const IRFunction *GetIRFunction() const {
+        return func_;
+    }
+
+    IRFunction *GetIRFunction() {
+        return func_;
+    }
+
+    void SetIRFunction(IRFunction *func) {
+        func_ = func;
+    }
+
+    virtual ~IRGraph() {
+        Instruction *walker = first_;
+        while(walker != nullptr) {
+            auto *next = walker->GetNext();
+            delete walker;
+            walker = next;
+        }
+
+        for(auto &&elt: bb_set_) {
+            delete elt;
+        }
+    }
+
+private:
+    void CreateIRGraphFromInstList(Instruction *first);
+
 protected:
     IRFunction *func_;
     std::unordered_set<BasicBlock*> bb_set_;
     BasicBlock *root_;
+    Instruction *first_;
+    Instruction *last_;
 };
 
 #endif // VM_IR_GRAPH_H

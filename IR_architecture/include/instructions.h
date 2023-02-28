@@ -10,12 +10,17 @@
 #include "user.h"
 #include "ilist_nodes.h"
 
-enum class inst_t {movi, u32tou64, cmp, ja, mul, add, jmp, ret, phi};
+
+enum class inst_t {movi, u32tou64, cmp, ja, mul, add, jmp, ret, phi, call};
 enum class class_t {none, unary, binary, jump, nary, phi};
 
+class BasicBlock;
+class IRFunction;
+// idea: make virtual methods for accessing res reg and opnds
 class Instruction : public ilist_bidirectional_node<Instruction> {
 public:
-    Instruction(inst_t type, prim_type ptype) : type_(type), prim_type_(ptype) {}
+    Instruction(inst_t type, prim_type ptype, bool is_jump_dest = false)
+    : is_jump_dest_(is_jump_dest), parent_bb_(nullptr), type_(type), prim_type_(ptype) {}
 
     virtual Instruction *clone() const {
         return new Instruction(*this);
@@ -38,11 +43,32 @@ public:
             case inst_t::movi: return class_t::unary;
             case inst_t::mul: return class_t::binary;
             case inst_t::phi: return class_t::phi;
+            case inst_t::call: return class_t::nary;
         }
     }
 
+    BasicBlock *GetParentBB() {
+        return parent_bb_;
+    }
+
+    const BasicBlock *GetParentBB() const {
+        return parent_bb_;
+    }
+
+    void SetParentBB(BasicBlock *bb) {
+        parent_bb_ = bb;
+    }
+
+    bool IsJumpDest() const {
+        return is_jump_dest_;
+    }
+
+    void SetJumpDest(bool flag) {
+        is_jump_dest_ = flag;
+    }
+
 private:
-    Instruction(const Instruction &other) : type_(other.type_), prim_type_(other.prim_type_) {};
+    Instruction(const Instruction &other) = default;
     Instruction &operator=(const Instruction &other) = delete;
 
     Instruction(Instruction &&other) = delete;
@@ -51,6 +77,8 @@ private:
 
 protected:
 
+    bool is_jump_dest_;
+    BasicBlock *parent_bb_;
     inst_t type_;
     prim_type prim_type_;
 };
@@ -60,13 +88,13 @@ class NarySimpleInstr : public Instruction, public User<SimpleOperand, opnds_num
 public:
     template<class ...Opnds>
     requires IsPackDerivedFromSameType<SimpleOperand, Opnds...>
-    NarySimpleInstr(inst_t type, std::unique_ptr<IReg> &&res, std::unique_ptr<Opnds> &&... opnd) :
-    Instruction(type, res->GetPrimType()), User<SimpleOperand, opnds_num>(std::move(res), opnd...) {}
+    NarySimpleInstr(inst_t type, bool is_jump_dest, std::unique_ptr<IReg> &&res, std::unique_ptr<Opnds> &&... opnd) :
+    Instruction(type, res->GetPrimType(), is_jump_dest), User<SimpleOperand, opnds_num>(std::move(res), opnd...) {}
 
     template<class ...Opnds>
     requires IsPackDerivedFromSameType<SimpleOperand, Opnds...>
-    NarySimpleInstr(inst_t type, IReg *res, Opnds *... opnd) :
-            Instruction(type, res->GetPrimType()), User<SimpleOperand, opnds_num>(res, opnd...) {}
+    NarySimpleInstr(inst_t type, bool is_jump_dest, IReg *res, Opnds *... opnd) :
+            Instruction(type, res->GetPrimType(), is_jump_dest), User<SimpleOperand, opnds_num>(res, opnd...) {}
 
     virtual NarySimpleInstr *clone() const override {
         return new NarySimpleInstr(*this);
@@ -86,11 +114,19 @@ public:
 
     template<class Str>
     requires std::same_as<Str, std::string> || std::convertible_to<Str, const char *>
-    Jump(Str &&label_name, inst_t jmp_type = inst_t::jmp) : Instruction(jmp_type, prim_type::NONE),
-    label_(label_name) {}
+    Jump(Str &&label_name, Instruction *jmp_dest= nullptr, inst_t jmp_type = inst_t::jmp) : Instruction(jmp_type, prim_type::NONE),
+    label_(label_name, jmp_dest) {}
 
     std::string_view GetLabelName() {
         return label_.GetName();
+    }
+
+    Instruction *GetInstToJump() {
+        return label_.GetLabeledInst();
+    }
+
+    const Instruction *GetInstToJump() const {
+        return label_.GetLabeledInst();
     }
 
 private:
@@ -101,27 +137,27 @@ protected:
 };
 
 class PhiInst final : public Instruction,
-        protected User<PhiOperand, std::numeric_limits<size_t>::max()> {
+        protected User<PhiOperand> {
     using PhiOpnd = OperandType;
 
 public:
     template <class ...Args>
     requires IsPackSameType<PhiOpnd, Args...>
     PhiInst(std::unique_ptr<IReg> res, std::unique_ptr<Args> && ...args) : Instruction(inst_t::phi, res->GetPrimType()),
-    User<PhiOpnd, std::numeric_limits<size_t>::max()>(std::move(res), std::move(args)...) {}
+    User<PhiOpnd>(std::move(res), std::move(args)...) {}
 
     template <class ...Args>
     requires IsPackSameType<PhiOpnd, Args...>
     PhiInst(IReg *res, Args *...args) :
-    Instruction(inst_t::phi, res->GetPrimType()),
-    User<PhiOpnd, std::numeric_limits<size_t>::max()>(std::unique_ptr<IReg>(res), std::unique_ptr<Args>(args)...) {}
+    Instruction(inst_t::phi, res->GetPrimType(), true),
+    User<PhiOpnd>(std::unique_ptr<IReg>(res), std::unique_ptr<Args>(args)...) {}
 
-    const std::string_view GetLabelAt(size_t idx) const {
-        return GetOpndAt(idx)->GetLabel();
+    const BasicBlock *GetSrcBBAt(size_t idx) const {
+        return GetOpndAt(idx)->GetSrcBB();
     }
 
-    std::string_view GetLabelAt(size_t idx) {
-        return GetOpndAt(idx)->GetLabel();
+    BasicBlock *GetSrcBBAt(size_t idx) {
+        return GetOpndAt(idx)->GetSrcBB();
     }
 
     const IReg *GetRes() const {
@@ -132,12 +168,24 @@ public:
         return GetResReg();
     }
 
+    size_t GetOperandsSize() const {
+        return GetOpndsSize();
+    }
+
     const SimpleOperand *GetOperandAt(size_t idx) const {
         return GetOpndAt(idx)->GetOperand();
     }
 
     SimpleOperand *GetOperandAt(size_t idx) {
         return GetOpndAt(idx)->GetOperand();
+    }
+
+    void SetOperandAt(size_t idx, SimpleOperand *opnd) {
+        GetOpndAt(idx)->SetOperand(opnd);
+    }
+
+    void PushBackOperand(BasicBlock *bb, SimpleOperand *opnd) {
+        opnds_.emplace_back(std::make_unique<PhiOpnd>(this, bb, opnd));
     }
 
     virtual PhiInst *clone() const override {
@@ -148,6 +196,48 @@ private:
     PhiInst(const PhiInst &rhs) : Instruction(rhs.type_, rhs.prim_type_),
     User<PhiOpnd , std::numeric_limits<size_t>::max()>(rhs) {}
 
+};
+
+class CallInstr : public Instruction, public User<SimpleOperand> {
+public:
+
+    template<class ...Opnds>
+    requires IsPackDerivedFromSameType<SimpleOperand, Opnds...>
+    CallInstr(bool is_jump_dest, IRFunction *func, std::unique_ptr<IReg> &&res,
+    std::unique_ptr<Opnds> && ...opnd) :
+    Instruction(inst_t::call, res->GetPrimType(), is_jump_dest),
+    User<SimpleOperand>(std::move(res), std::move(opnd)...), callee_func_(func) {}
+
+
+    template<class ...Opnds>
+    requires IsPackDerivedFromSameType<SimpleOperand, Opnds...>
+    CallInstr(bool is_jump_dest, IRFunction *func, IReg *res, Opnds *... opnd) :
+    Instruction(inst_t::call, res->GetPrimType(), is_jump_dest),
+    User<SimpleOperand>(std::unique_ptr<IReg>(res), std::unique_ptr<SimpleOperand>(opnd)...),
+            callee_func_(func) {}
+
+    IRFunction *GetFunc() {
+        return callee_func_;
+    }
+
+    const IRFunction *GetFunc() const {
+        return callee_func_;
+    }
+
+    virtual CallInstr *clone() const override {
+        return new CallInstr(*this);
+    }
+
+protected:
+    CallInstr(const CallInstr &rhs) :
+    Instruction(inst_t::call, rhs.prim_type_, rhs.is_jump_dest_),
+    User<SimpleOperand>(rhs), callee_func_(rhs.callee_func_) {}
+    CallInstr &operator=(const CallInstr *rhs) = delete;
+
+    CallInstr(CallInstr &&rhs) = delete;
+    CallInstr &operator=(CallInstr &&rhs) = delete;
+
+    IRFunction *callee_func_;
 };
 
 
