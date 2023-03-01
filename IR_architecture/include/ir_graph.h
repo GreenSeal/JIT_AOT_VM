@@ -59,6 +59,30 @@ public:
 //    Instruction *ReplaceFirstInst();
 //    Instruction *ReplaceLastInst();
 
+    void RemoveNonCFGOrSideInst(Instruction *inst) {
+        auto *parent_bb = inst->GetParentBB();
+        if(parent_bb->size() == 1) {
+            parent_bb->AssignFirstInst(nullptr);
+            parent_bb->AssignLastInst(nullptr);
+        } else if(parent_bb->GetFirstInst() == inst) {
+            parent_bb->AssignFirstInst(inst->GetNext());
+        } else if(parent_bb->GetLastInst() == inst) {
+            parent_bb->AssignLastInst(inst->GetPrev());
+        }
+        if(inst == first_) {
+            first_ = first_->GetNext();
+        } else if(inst == last_) {
+            // if instruction the last in the graph then we know it is the last in according bb
+            last_ = last_->GetPrev();
+        } else {
+            auto *prev = inst->GetPrev();
+            auto *next = inst->GetNext();
+            prev->AssignNextAndPrev(next);
+        }
+
+        delete inst;
+    }
+
     bool IsBBsConnected(BasicBlock *bb, BasicBlock *bb_succ) const;
     void AddBBToBegin(BasicBlock *bb);
 
@@ -116,11 +140,11 @@ public:
             auto *fst_succ = bb->GetFirstSucc();
             auto *snd_succ = bb->GetSecondSucc();
 
-            if(!fst_succ) {
+            if(fst_succ) {
                 bb->RemoveSuccAndPredec(fst_succ);
                 new_bb->AddSuccWithPredec(fst_succ);
             }
-            if(!snd_succ) {
+            if(snd_succ) {
                 bb->RemoveSuccAndPredec(snd_succ);
                 new_bb->AddSuccWithPredec(snd_succ);
             }

@@ -11,12 +11,13 @@ public:
                 auto *call_inst = static_cast<CallInstr*>(walker);
                 ReplaceCallWithBody(call_inst, call_inst->GetFunc());
             }
+            walker = walker->GetNext();
         }
     }
 
     void ReplaceCallWithBody(CallInstr *call_inst, const IRFunction *callee_func) {
         IRGraph *callee_body_clone = new IRGraph(*callee_func->GetBody());
-        size_t max_reg = FindMaxTmpReg(call_inst->GetParentBB()->GetIRGraph()->GetIRFunction());
+        size_t max_reg = FindMaxTmpReg(call_inst->GetParentBB()->GetIRGraph());
         AddNumToEveryTmpRegIdx(callee_body_clone, max_reg+1);
         auto *cur_bb = call_inst->GetParentBB();
         cur_bb->GetIRGraph()->SplitBBInTwo(cur_bb, call_inst);
@@ -27,6 +28,7 @@ public:
         }
 
         PropFuncArgs(callee_body_clone, func_args);
+        InsertFuncBody(callee_body_clone, call_inst);
 
         // Copy body of callee func -- done
         // Find the maximum idx of tmp register -- done
@@ -38,39 +40,42 @@ public:
     }
 
 private:
-    size_t FindMaxTmpReg(IRFunction *func) {
+    size_t FindMaxTmpReg(const IRGraph *graph) {
         size_t max = 0;
-        auto *graph = func->GetBody();
         auto *walker = graph->GetFirstInst();
         while(walker != nullptr) {
             switch (Instruction::GetClassType(walker->GetInstType())) {
                 case class_t::unary: {
-                    auto cur_inst = static_cast<NarySimpleInstr<1> *>(walker);
+                    auto cur_inst = static_cast<const NarySimpleInstr<1> *>(walker);
                     if(cur_inst->GetResReg()->GetRegType() == IReg::reg_t::t
                     && cur_inst->GetResReg()->GetRegIdx() > max) {
                         max = cur_inst->GetResReg()->GetRegIdx();
                     }
+                    break;
                 }
                 case class_t::binary: {
-                    auto cur_inst = static_cast<NarySimpleInstr<2> *>(walker);
+                    auto cur_inst = static_cast<const NarySimpleInstr<2> *>(walker);
                     if(cur_inst->GetResReg()->GetRegType() == IReg::reg_t::t
                     && cur_inst->GetResReg()->GetRegIdx() > max) {
                         max = cur_inst->GetResReg()->GetRegIdx();
                     }
+                    break;
                 }
                 case class_t::nary: {
-                    auto cur_inst = static_cast<NarySimpleInstr<> *>(walker);
+                    auto cur_inst = static_cast<const NarySimpleInstr<> *>(walker);
                     if(cur_inst->GetResReg()->GetRegType() == IReg::reg_t::t
                     && cur_inst->GetResReg()->GetRegIdx() > max) {
                         max = cur_inst->GetResReg()->GetRegIdx();
                     }
+                    break;
                 }
                 case class_t::phi: {
-                    auto cur_inst = static_cast<PhiInst *>(walker);
+                    auto cur_inst = static_cast<const PhiInst *>(walker);
                     if(cur_inst->GetRes()->GetRegType() == IReg::reg_t::t
                     && cur_inst->GetRes()->GetRegIdx() > max) {
                         max = cur_inst->GetRes()->GetRegIdx();
                     }
+                    break;
                 }
                 default:;
             }
@@ -93,12 +98,12 @@ private:
                     }
                     if(cur_inst->GetOpnd(0)->GetSimpleOpndType() == SimpleOperand::simple_opnd_t::ireg) {
                         auto *reg = static_cast<IReg *>(cur_inst->GetOpnd(0));
-                        if(cur_inst->GetResReg()->GetRegType() == IReg::reg_t::t) {
+                        if(reg->GetRegType() == IReg::reg_t::t) {
                             size_t cur_opnd_idx = reg->GetRegIdx();
                             reg->SetRegIdx(cur_opnd_idx+num);
                         }
                     }
-
+                    break;
                 }
                 case class_t::binary: {
                     auto cur_inst = static_cast<NarySimpleInstr<2> *>(walker);
@@ -115,6 +120,7 @@ private:
                             }
                         }
                     }
+                    break;
                 }
                 case class_t::phi: {
                     auto cur_inst = static_cast<PhiInst *>(walker);
@@ -131,6 +137,7 @@ private:
                             }
                         }
                     }
+                    break;
                 }
                 case class_t::nary: {
                     auto cur_inst = static_cast<NarySimpleInstr<> *>(walker);
@@ -147,6 +154,7 @@ private:
                             }
                         }
                     }
+                    break;
                 }
                 default:;
             }
@@ -167,7 +175,7 @@ private:
                             cur_inst->SetOpnd(0, args.at(cur_opnd_idx)->clone());
                         }
                     }
-
+                    break;
                 }
                 case class_t::binary: {
                     auto cur_inst = static_cast<NarySimpleInstr<2> *>(walker);
@@ -180,6 +188,7 @@ private:
                             }
                         }
                     }
+                    break;
                 }
                 case class_t::phi: {
                     auto cur_inst = static_cast<PhiInst *>(walker);
@@ -192,6 +201,7 @@ private:
                             }
                         }
                     }
+                    break;
                 }
                 case class_t::nary: {
                     auto cur_inst = static_cast<NarySimpleInstr<> *>(walker);
@@ -204,6 +214,7 @@ private:
                             }
                         }
                     }
+                    break;
                 }
                 default:;
             }
@@ -234,8 +245,8 @@ private:
             } else {
                 // always minimum 1
                 auto *movi = new NarySimpleInstr<1>(inst_t::movi, false,
-                                                    call_inst->GetResReg(),
-                                                    ret_insts.at(0)->GetOpnd(0));
+                                                    call_inst->GetResReg()->clone(),
+                                                    ret_insts.at(0)->GetOpnd(0)->clone());
                 bb_to_insert->InsertInstForward(movi);
             }
         }
@@ -245,7 +256,12 @@ private:
         call_inst->GetParentBB()->AddSuccWithPredec(graph->GetRoot());
         for(auto &elt: ret_insts) {
             elt->GetParentBB()->AddSuccWithPredec(end_bb);
+            // TODO: Fix jumps that points into removed inst
+            graph->RemoveNonCFGOrSideInst(elt);
         }
+
+        call_inst->AssignNextAndPrev(graph->GetFirstInst());
+        graph->GetLastInst()->AssignNextAndPrev(end_bb->GetFirstInst());
     }
 };
 

@@ -67,6 +67,10 @@ public:
         is_jump_dest_ = flag;
     }
 
+    prim_type GetPrimType() const {
+        return prim_type_;
+    }
+
 private:
     Instruction(const Instruction &other) = default;
     Instruction &operator=(const Instruction &other) = delete;
@@ -89,12 +93,12 @@ public:
     template<class ...Opnds>
     requires IsPackDerivedFromSameType<SimpleOperand, Opnds...>
     NarySimpleInstr(inst_t type, bool is_jump_dest, std::unique_ptr<IReg> &&res, std::unique_ptr<Opnds> &&... opnd) :
-    Instruction(type, res->GetPrimType(), is_jump_dest), User<SimpleOperand, opnds_num>(std::move(res), opnd...) {}
+    Instruction(type, res.get()? res->GetPrimType() : prim_type::NONE, is_jump_dest), User<SimpleOperand, opnds_num>(std::move(res), opnd...) {}
 
     template<class ...Opnds>
     requires IsPackDerivedFromSameType<SimpleOperand, Opnds...>
     NarySimpleInstr(inst_t type, bool is_jump_dest, IReg *res, Opnds *... opnd) :
-            Instruction(type, res->GetPrimType(), is_jump_dest), User<SimpleOperand, opnds_num>(res, opnd...) {}
+    Instruction(type, res? res->GetPrimType() : prim_type::NONE, is_jump_dest), User<SimpleOperand, opnds_num>(res, opnd...) {}
 
     virtual NarySimpleInstr *clone() const override {
         return new NarySimpleInstr(*this);
@@ -127,6 +131,10 @@ public:
 
     const Instruction *GetInstToJump() const {
         return label_.GetLabeledInst();
+    }
+
+    void SetInstToJump(Instruction *dest) {
+        label_.SetLabeledInst(dest);
     }
 
 private:

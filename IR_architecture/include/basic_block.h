@@ -237,15 +237,27 @@ public:
         return loop_;
     }
 
-    size_t GetSize() const {
+    size_t size() const {
+        if(first_inst_ == nullptr) {
+            return 0;
+        } else if(first_inst_ == last_inst_) {
+            return 1;
+        }
+
         Instruction *walker = first_inst_;
         size_t count = 0;
-        while(walker != nullptr) {
+        while(walker != last_inst_) {
             ++count;
             walker = walker->GetNext();
         }
+        ++count;
 
         return count;
+    }
+
+    bool empty() const {
+        if(first_inst_ == nullptr) return true;
+        else return false;
     }
 
 protected:

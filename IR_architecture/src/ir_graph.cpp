@@ -43,15 +43,31 @@ IRGraph::IRGraph(const IRGraph &rhs) {
     if(rhs.first_ == nullptr) {
         CreateIRGraphFromInstList(nullptr);
     }
-    Instruction *first = rhs.first_->clone();
-    Instruction *prev = first;
-    Instruction *walker = rhs.first_->GetNext();
 
+    Instruction *first = nullptr;
+    Instruction *prev = nullptr;
+    Instruction *walker = rhs.first_;
+
+    std::unordered_map<Instruction *, Instruction *> new_to_old_insts;
+    std::unordered_map<Instruction *, Instruction *> old_to_new_insts;
     while(walker != nullptr) {
         Instruction *cloned = walker->clone();
-        prev->AssignNextAndPrev(cloned);
+        new_to_old_insts[cloned] = walker;
+        old_to_new_insts[walker] = cloned;
+        if(prev) {
+            prev->AssignNextAndPrev(cloned);
+        } else {
+            first = walker;
+        }
         walker = walker->GetNext();
         prev = cloned;
+    }
+
+    for(auto &elt: old_to_new_insts) {
+        if(IsJumpInst(elt.first)) {
+            auto *old_jump_dest = static_cast<Jump *>(elt.first)->GetInstToJump();
+            static_cast<Jump *>(elt.second)->SetInstToJump(old_to_new_insts.at(old_jump_dest));
+        }
     }
 
     CreateIRGraphFromInstList(first);
