@@ -37,6 +37,9 @@ public:
 
     virtual ~ilist_bidirectional_node() {}
 protected:
+    ilist_bidirectional_node() = default;
+    ilist_bidirectional_node(const ilist_bidirectional_node &rhs) = default;
+
     Elt *next_;
     Elt *prev_;
 };

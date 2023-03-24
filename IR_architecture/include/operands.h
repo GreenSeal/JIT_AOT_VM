@@ -16,7 +16,7 @@ class BasicBlock;
 
 class Operand : public Value {
 public:
-    enum class opnd_t: uint8_t {simple, phi};
+    enum class opnd_t: uint8_t {simple, phi, label};
 
     const Instruction *GetUser() const {
         return user_;
@@ -120,11 +120,12 @@ private:
     idx_type idx_;
 };
 
-class Label final {
+class LabelOpnd final : public Operand {
 public:
     template <class Str>
     requires std::constructible_from<std::string, Str>
-    Label(Str &&name, Instruction *inst = nullptr) : name_(name), labeled_inst_(inst){}
+    LabelOpnd(Str &&name, Instruction *inst = nullptr, Instruction *user = nullptr) :
+    Operand(user, opnd_t::label), name_(name), labeled_inst_(inst) {}
 
     const std::string_view GetName() const {
         return name_;
@@ -134,15 +135,15 @@ public:
         return name_;
     }
 
-    Instruction *GetLabeledInst() {
+    Instruction *GetInstToJump() {
         return labeled_inst_;
     }
 
-    const Instruction *GetLabeledInst() const {
+    const Instruction *GetInstToJump() const {
         return labeled_inst_;
     }
 
-    void SetLabeledInst(Instruction *inst) {
+    void SetInstToJump(Instruction *inst) {
         labeled_inst_ = inst;
     }
 
@@ -184,10 +185,10 @@ private:
 
 class PhiOperand final: public Operand {
 public:
-    PhiOperand(Instruction *user, BasicBlock *src, std::unique_ptr<SimpleOperand> &&opnd) :
+    PhiOperand(std::unique_ptr<SimpleOperand> &&opnd, BasicBlock *src, Instruction *user = nullptr) :
     Operand(user, opnd_t::phi), opnd_{src, std::move(opnd)} {}
 
-    PhiOperand(Instruction *user, BasicBlock *src, SimpleOperand *opnd) :
+    PhiOperand(SimpleOperand *opnd, BasicBlock *src, Instruction *user = nullptr) :
     Operand(user, opnd_t::phi), opnd_{src, std::unique_ptr<SimpleOperand>(opnd)} {}
 
     PhiOperand *clone() const override {

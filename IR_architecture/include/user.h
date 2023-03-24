@@ -34,53 +34,52 @@ concept RandomIterator = InputIterator<It> &&
 template <class OpndType, size_t opnd_num = std::numeric_limits<size_t>::max()>
 class User {
 public:
-
     using OperandType = OpndType;
 
-    const IReg *GetResReg() const {
+    const IReg *GetResultReg() const {
         return res_.get();
     }
 
-    IReg *GetResReg() {
+    IReg *GetResultReg() {
         return res_.get();
     }
 
-    const OpndType *GetOpndAt(size_t idx) const {
+    const OpndType *GetOperandAt(size_t idx) const {
         return opnds_.at(idx).get();
     };
 
-    OpndType *GetOpndAt(size_t idx) {
+    OpndType *GetOperandAt(size_t idx) {
         return opnds_.at(idx).get();
     }
 
-    const OpndType *GetOpnd(size_t idx) const {
-        return opnds_[idx].get();
-    };
-
-    OpndType *GetOpnd(size_t idx) {
+    const OpndType *GetOperand(size_t idx) const {
         return opnds_[idx].get();
     }
 
-    size_t GetOpndsSize() {
+    OpndType *GetOperand(size_t idx) {
+        return opnds_[idx].get();
+    }
+
+    size_t GetOperandsSize() const {
         return opnds_.size();
     }
 
-    void SetOpnd(size_t idx, OpndType *opnd) {
+    void SetOperand(size_t idx, OpndType *opnd) {
         opnds_[idx] = std::unique_ptr<OpndType>(opnd);
     }
 
-    void SetOpndAt(size_t idx, OpndType *opnd) {
+    void SetOperandAt(size_t idx, OpndType *opnd) {
         opnds_.at(idx) = std::unique_ptr<OpndType>(opnd);
     }
 
 protected:
     template <class ...Elt>
-    requires IsPackSameType<OpndType, Elt...> || IsPackDerivedFromSameType<OpndType, Elt...>
+    /*requires IsPackSameType<OpndType, Elt...> || IsPackDerivedFromSameType<Operand, Elt...>*/
     User(std::unique_ptr<IReg> &&res, std::unique_ptr<Elt>&&... opnds) :
     res_(std::move(res)), opnds_{std::forward<std::unique_ptr<Elt>>(opnds)...} {}
 
     template <class ...Elt>
-    requires IsPackSameType<OpndType, Elt...> || IsPackDerivedFromSameType<OpndType, Elt...>
+    /*requires IsPackSameType<OpndType, Elt...> || IsPackDerivedFromSameType<Operand, Elt...>*/
     User(IReg *res, Elt *... opnds) :
     res_(std::unique_ptr<IReg>(res)), opnds_{std::forward<std::unique_ptr<Elt>>(std::unique_ptr<Elt>(opnds))...} {}
 
@@ -100,10 +99,15 @@ protected:
 
 
     User(const User &rhs) {
-        res_ = std::unique_ptr<IReg>(static_cast<IReg *>(rhs.res_.get()->clone()));
+        if(rhs.res_.get()) {
+            res_ = std::unique_ptr<IReg>(static_cast<IReg *>(rhs.res_.get()->clone()));
+        } else {
+            res_ = nullptr;
+        }
         size_t idx = 0;
         for(const auto &opnd : rhs.opnds_) {
-            opnds_.at(idx) = std::unique_ptr<OpndType>(opnd.get()->clone());
+            opnds_.at(idx) =
+                    std::unique_ptr<OpndType>(static_cast<OpndType*>(opnd.get()->clone()));
             ++idx;
         }
     }
@@ -123,49 +127,49 @@ public:
 
     using OperandType = OpndType;
 
-    const OpndType *GetOpndAt(size_t idx) const {
+    const OpndType *GetOperandAt(size_t idx) const {
         return opnds_.at(idx).get();
     };
 
-    OpndType *GetOpndAt(size_t idx) {
+    OpndType *GetOperandAt(size_t idx) {
         return opnds_.at(idx).get();
     }
 
-    const OpndType *GetOpnd(size_t idx) const {
+    const OpndType *GetOperand(size_t idx) const {
         return opnds_[idx].get();
     };
 
-    OpndType *GetOpnd(size_t idx) {
+    OpndType *GetOperand(size_t idx) {
         return opnds_[idx].get();
     }
 
-    size_t GetOpndsSize() const {
+    size_t GetOperandsSize() const {
         return opnds_.size();
     }
 
-    IReg *GetResReg() {
+    IReg *GetResultReg() {
         return res_.get();
     }
 
-    const IReg *GetResReg() const {
+    const IReg *GetResultReg() const {
         return res_.get();
     }
 
-    void SetOpnd(size_t idx, OpndType *opnd) {
+    void SetOperand(size_t idx, OpndType *opnd) {
         opnds_[idx] = std::unique_ptr<OpndType>(opnd);
     }
 
-    void SetOpndAt(size_t idx, OpndType *opnd) {
+    void SetOperandAt(size_t idx, OpndType *opnd) {
         opnds_.at(idx) = std::unique_ptr<OpndType>(opnd);
     }
 
-    void PushOpndBack(OpndType *opnd) {
+    void PushOperandBack(OpndType *opnd) {
         opnds_.push_back(std::unique_ptr<OpndType>(opnd));
     }
 
 protected:
     template <class ...Elt>
-    requires IsPackSameType<OpndType, Elt...> || IsPackDerivedFromSameType<OpndType, Elt...>
+    requires /*IsPackSameType<OpndType, Elt...> || */IsPackDerivedFromSameType<Operand, Elt...>
     User(std::unique_ptr<IReg> res, std::unique_ptr<Elt>&&... opnds) :
     res_(std::move(res)) {
         opnds_.reserve(sizeof...(Elt));
@@ -173,7 +177,7 @@ protected:
     }
 
     template <class ...Elt>
-    requires IsPackSameType<OpndType, Elt...> || IsPackDerivedFromSameType<OpndType, Elt...>
+    requires /*IsPackSameType<OpndType, Elt...> || */IsPackDerivedFromSameType<Operand, Elt...>
     User(IReg *res, Elt *... opnds) :
     res_(std::unique_ptr<IReg>(res)) {
         opnds_.reserve(sizeof...(Elt));

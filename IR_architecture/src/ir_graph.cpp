@@ -2,6 +2,8 @@
 // Created by denist on 10/4/22.
 //
 
+#include <iostream>
+
 #include "ir_graph.h"
 
 //IRGraph::IRGraph(BasicBlock *root, IRFunction *func) : func_(func), root_(nullptr) {
@@ -40,15 +42,17 @@ IRGraph::IRGraph(Instruction *first, IRFunction *func) : func_(func) {
 }
 
 IRGraph::IRGraph(const IRGraph &rhs) {
+    std::unordered_map<Instruction *, Instruction *> new_to_old_insts;
+
     if(rhs.first_ == nullptr) {
         CreateIRGraphFromInstList(nullptr);
+        return;
     }
 
     Instruction *first = nullptr;
     Instruction *prev = nullptr;
     Instruction *walker = rhs.first_;
 
-    std::unordered_map<Instruction *, Instruction *> new_to_old_insts;
     std::unordered_map<Instruction *, Instruction *> old_to_new_insts;
     while(walker != nullptr) {
         Instruction *cloned = walker->clone();
@@ -57,20 +61,28 @@ IRGraph::IRGraph(const IRGraph &rhs) {
         if(prev) {
             prev->AssignNextAndPrev(cloned);
         } else {
-            first = walker;
+            first = cloned;
         }
         walker = walker->GetNext();
         prev = cloned;
     }
 
-    for(auto &elt: old_to_new_insts) {
+    for(const auto &elt: old_to_new_insts) {
         if(IsJumpInst(elt.first)) {
-            auto *old_jump_dest = static_cast<Jump *>(elt.first)->GetInstToJump();
-            static_cast<Jump *>(elt.second)->SetInstToJump(old_to_new_insts.at(old_jump_dest));
+            auto *old_jump_dest = static_cast<Jump *>(elt.first)->GetOpnd(0)->GetInstToJump();
+            static_cast<Jump *>(elt.second)->GetOpnd(0)->SetInstToJump(old_to_new_insts.at(old_jump_dest));
         }
     }
 
     CreateIRGraphFromInstList(first);
+
+    old_to_new_insts.clear();
+    std::cout << "Deleting old_to_new..." << std::endl;
+    old_to_new_insts.~unordered_map();
+    std::cout << "                      done" << std::endl;
+    std::cout << "Deleting new_to_old..." << std::endl;
+    new_to_old_insts.~unordered_map();
+    std::cout << "                      done" << std::endl;
 }
 
 void IRGraph::CreateIRGraphFromInstList(Instruction *first) {
@@ -104,13 +116,13 @@ void IRGraph::CreateIRGraphFromInstList(Instruction *first) {
             switch (last_inst->GetInstType()) {
                 case inst_t::jmp: {
                     auto *jump = static_cast<Jump *>(last_inst);
-                    cur_bb->AddSuccWithPredec(jump->GetInstToJump()->GetParentBB());
+                    cur_bb->AddSuccWithPredec(jump->GetOpnd(0)->GetInstToJump()->GetParentBB());
                     break;
                 }
                 case inst_t::ja: {
                     auto *ja = static_cast<Jump *>(last_inst);
                     cur_bb->AddSuccWithPredec(bbs_in_order.at(i+1));
-                    cur_bb->AddSuccWithPredec(ja->GetInstToJump()->GetParentBB());
+                    cur_bb->AddSuccWithPredec(ja->GetOpnd(0)->GetInstToJump()->GetParentBB());
                     break;
                 }
                 default:;

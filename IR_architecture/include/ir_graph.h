@@ -182,6 +182,17 @@ public:
         func_ = func;
     }
 
+    size_t size() {
+        auto *walker = first_;
+        size_t count = 0;
+        while(walker != nullptr) {
+            ++count;
+            walker = walker->GetNext();
+        }
+
+        return count;
+    }
+
     virtual ~IRGraph() {
         Instruction *walker = first_;
         while(walker != nullptr) {

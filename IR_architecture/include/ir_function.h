@@ -46,11 +46,11 @@ public:
     }
 
     const SimpleOperand *GetArgAt(size_t idx) const {
-        return GetOpndAt(idx);
+        return GetOperandAt(idx);
     }
 
     SimpleOperand *GetArgAt(size_t idx) {
-        return GetOpndAt(idx);
+        return GetOperandAt(idx);
     }
 
     const IRGraph *GetBody() const {

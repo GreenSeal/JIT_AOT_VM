@@ -24,7 +24,7 @@ TEST(static_inline, func_with_two_rets) {
     auto *second_ret = new NarySimpleInstr<1>(inst_t::ret, true,
                                               new IReg(prim_type::UINT, 32, IReg::reg_t::g, 1),
                                               new IReg(prim_type::UINT, 32, IReg::reg_t::t, 1));
-    auto *ja = new Jump("1", second_ret, inst_t::ja);
+    auto *ja = new Jump("1", false, second_ret, inst_t::ja);
 
     movi->AssignNextAndPrev(add);
     add->AssignNextAndPrev(cmp);
@@ -88,9 +88,10 @@ TEST(static_inline, func_with_two_rets) {
     next = next->GetNext();
     ASSERT_EQ(next->GetInstType(), inst_t::phi);
     auto *created_phi = static_cast<PhiInst*>(next);
-    EXPECT_EQ(created_phi->GetRes()->GetRegIdx(), 2);
-    EXPECT_EQ(static_cast<IReg*>(created_phi->GetOperandAt(0))->GetRegIdx(), 3);
-    EXPECT_EQ(static_cast<IReg*>(created_phi->GetOperandAt(1))->GetRegIdx(), 4);
+
+    EXPECT_EQ(created_phi->GetResReg()->GetRegIdx(), 2);
+    EXPECT_EQ(static_cast<IReg*>(created_phi->GetOpnd(0)->GetOperand())->GetRegIdx(), 3);
+    EXPECT_EQ(static_cast<IReg*>(created_phi->GetOpnd(1)->GetOperand())->GetRegIdx(), 4);
 
     next = next->GetNext();
     ASSERT_EQ(next->GetInstType(), inst_t::ret);
