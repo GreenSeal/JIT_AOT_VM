@@ -44,6 +44,7 @@ public:
             case inst_t::mul: return class_t::binary;
             case inst_t::phi: return class_t::phi;
             case inst_t::call: return class_t::nary;
+            default: return class_t::none;
         }
     }
 

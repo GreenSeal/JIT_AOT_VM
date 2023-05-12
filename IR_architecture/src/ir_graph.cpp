@@ -140,16 +140,25 @@ bool IRGraph::IsBBsConnected(BasicBlock *bb, BasicBlock *bb_succ) const {
 }
 
 void IRGraph::AddBBToBegin(BasicBlock *bb) {
-    if(root_ == nullptr) {
-        root_ = bb;
-        bb_set_.insert(root_);
+    if(bb == nullptr) {
         return;
     }
 
-    bb->AddSucc(root_);
-    root_->AddPredec(bb);
+    if(first_ == nullptr) {
+        first_ = bb->GetFirstInst();
+        last_ = bb->GetLastInst();
+    } else if(bb->GetFirstInst() != nullptr) {
+        first_->AssignPrev(bb->GetLastInst());
+        bb->GetLastInst()->AssignNext(first_);
+        first_ = bb->GetFirstInst();
+    }
+
+    if(root_ != nullptr) {
+        bb->AddSucc(root_);
+        root_->AddPredec(bb);
+    }
     root_ = bb;
-    bb_set_.insert(root_);
+    bb_set_.insert(bb);
 }
 
 

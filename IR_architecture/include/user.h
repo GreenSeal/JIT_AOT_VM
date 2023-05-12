@@ -5,6 +5,7 @@
 #ifndef VM_USER_H
 #define VM_USER_H
 #include <memory>
+#include <limits>
 
 #include "operands.h"
 

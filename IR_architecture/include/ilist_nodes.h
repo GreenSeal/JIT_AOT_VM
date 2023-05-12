@@ -107,7 +107,7 @@ public:
         predec_.pop_back();
     }
 
-    void RemoveSuccAndPredec(Elt *elt) {
+    void RemoveSuccWithPredec(Elt *elt) {
         RemoveSucc(elt);
         elt->RemovePredec(static_cast<Elt *>(this));
     }

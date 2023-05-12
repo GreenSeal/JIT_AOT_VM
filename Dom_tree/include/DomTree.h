@@ -13,7 +13,7 @@
 class DomTree final {
 public:
 
-    void RunAlgoAndBuildDomTree(const BasicBlock *graph) {
+    void Run(const BasicBlock *graph) {
         graph_ = graph;
         RunStep1();
         RunStep2AndStep3();

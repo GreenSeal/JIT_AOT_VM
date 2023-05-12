@@ -252,7 +252,7 @@ private:
         }
 
         BasicBlock *end_bb = call_inst->GetParentBB()->GetFirstSucc();
-        call_inst->GetParentBB()->RemoveSuccAndPredec(end_bb);
+        call_inst->GetParentBB()->RemoveSuccWithPredec(end_bb);
         call_inst->GetParentBB()->AddSuccWithPredec(graph->GetRoot());
         for(auto &elt: ret_insts) {
             elt->GetParentBB()->AddSuccWithPredec(end_bb);

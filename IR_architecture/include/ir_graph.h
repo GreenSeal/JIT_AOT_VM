@@ -107,8 +107,7 @@ public:
             throw std::invalid_argument("Trying to add existing edge at AddEdge method");
         }
 
-        from->AddSucc(to);
-        to->AddPredec(from);
+        from->AddSuccWithPredec(to);
     }
 
     void RemoveEdge(BasicBlock *from, BasicBlock *to) {
@@ -123,8 +122,7 @@ public:
 
         for(auto it = from->GetSuccBegin(), end = from->GetSuccEnd(); it != end; ++it) {
             if(*it == to) {
-                from->RemoveSucc(*it);
-                to->RemovePredec(from);
+                from->RemoveSuccWithPredec(*it);
                 return;
             }
         }
@@ -141,11 +139,11 @@ public:
             auto *snd_succ = bb->GetSecondSucc();
 
             if(fst_succ) {
-                bb->RemoveSuccAndPredec(fst_succ);
+                bb->RemoveSuccWithPredec(fst_succ);
                 new_bb->AddSuccWithPredec(fst_succ);
             }
             if(snd_succ) {
-                bb->RemoveSuccAndPredec(snd_succ);
+                bb->RemoveSuccWithPredec(snd_succ);
                 new_bb->AddSuccWithPredec(snd_succ);
             }
             bb->AddSuccWithPredec(new_bb);

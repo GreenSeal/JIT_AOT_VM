@@ -23,15 +23,15 @@ TEST(dom_tree_algo, ir_graph1) {
      *
      */
 
-    auto bb1 = new BasicBlock(nullptr, "A");
-    auto bb2 = new BasicBlock(nullptr, "B");
-    auto bb3 = new BasicBlock(nullptr, "C");
-    auto bb4 = new BasicBlock(nullptr, "D");
-    auto bb5 = new BasicBlock(nullptr, "E");
-    auto bb6 = new BasicBlock(nullptr, "F");
-    auto bb7 = new BasicBlock(nullptr, "G");
+    auto bb1 = new BasicBlock(nullptr, nullptr, "A");
+    auto bb2 = new BasicBlock(nullptr, nullptr, "B");
+    auto bb3 = new BasicBlock(nullptr, nullptr, "C");
+    auto bb4 = new BasicBlock(nullptr, nullptr, "D");
+    auto bb5 = new BasicBlock(nullptr, nullptr, "E");
+    auto bb6 = new BasicBlock(nullptr, nullptr, "F");
+    auto bb7 = new BasicBlock(nullptr, nullptr, "G");
 
-    IRGraph graph{};
+    IRGraph graph{nullptr};
 
     graph.AddBBToBegin(bb1);
     graph.AddBBInGraph(bb2);
@@ -52,7 +52,7 @@ TEST(dom_tree_algo, ir_graph1) {
     graph.AddEdge(bb7, bb4);
 
     DomTree dom_tree_algo{};
-    dom_tree_algo.RunAlgoAndBuildDomTree(graph.GetRoot());
+    dom_tree_algo.Run(graph.GetRoot());
 
     EXPECT_TRUE(bb1->IsDirectlyDominated(bb2));
     EXPECT_EQ(bb1->GetIdom(), nullptr);
@@ -70,14 +70,6 @@ TEST(dom_tree_algo, ir_graph1) {
     EXPECT_TRUE(bb6->IsDirectlyDominated(bb5));
     EXPECT_EQ(bb7->GetIdom(), bb6);
     EXPECT_EQ(bb5->GetIdom(), bb6);
-
-    delete bb1;
-    delete bb2;
-    delete bb3;
-    delete bb4;
-    delete bb5;
-    delete bb6;
-    delete bb7;
 }
 
 TEST(dom_tree_algo, ir_graph2) {
@@ -101,19 +93,19 @@ TEST(dom_tree_algo, ir_graph2) {
      *              |K|
      */
 
-    auto bb_A = new BasicBlock(nullptr, "A");
-    auto bb_B = new BasicBlock(nullptr, "B");
-    auto bb_C = new BasicBlock(nullptr, "C");
-    auto bb_D = new BasicBlock(nullptr, "D");
-    auto bb_E = new BasicBlock(nullptr, "E");
-    auto bb_F = new BasicBlock(nullptr, "F");
-    auto bb_G = new BasicBlock(nullptr, "G");
-    auto bb_H = new BasicBlock(nullptr, "H");
-    auto bb_I = new BasicBlock(nullptr, "I");
-    auto bb_J = new BasicBlock(nullptr, "J");
-    auto bb_K = new BasicBlock(nullptr, "K");
+    auto bb_A = new BasicBlock(nullptr, nullptr, "A");
+    auto bb_B = new BasicBlock(nullptr, nullptr, "B");
+    auto bb_C = new BasicBlock(nullptr, nullptr, "C");
+    auto bb_D = new BasicBlock(nullptr, nullptr, "D");
+    auto bb_E = new BasicBlock(nullptr, nullptr, "E");
+    auto bb_F = new BasicBlock(nullptr, nullptr, "F");
+    auto bb_G = new BasicBlock(nullptr, nullptr, "G");
+    auto bb_H = new BasicBlock(nullptr, nullptr, "H");
+    auto bb_I = new BasicBlock(nullptr, nullptr, "I");
+    auto bb_J = new BasicBlock(nullptr, nullptr, "J");
+    auto bb_K = new BasicBlock(nullptr, nullptr, "K");
 
-    IRGraph graph{};
+    IRGraph graph{nullptr};
 
     graph.AddBBToBegin(bb_A);
     graph.AddBBInGraph(bb_B);
@@ -143,7 +135,7 @@ TEST(dom_tree_algo, ir_graph2) {
     graph.AddEdge(bb_J, bb_C);
 
     DomTree dom_tree_algo{};
-    dom_tree_algo.RunAlgoAndBuildDomTree(graph.GetRoot());
+    dom_tree_algo.Run(graph.GetRoot());
 
     EXPECT_TRUE(bb_A->IsDirectlyDominated(bb_B));
     EXPECT_EQ(bb_A->GetIdom(), nullptr);
@@ -200,17 +192,17 @@ TEST(dom_tree_algo, ir_graph3) {
      *
      */
 
-    auto bb_A = new BasicBlock(nullptr, "A");
-    auto bb_B = new BasicBlock(nullptr, "B");
-    auto bb_C = new BasicBlock(nullptr, "C");
-    auto bb_D = new BasicBlock(nullptr, "D");
-    auto bb_E = new BasicBlock(nullptr, "E");
-    auto bb_F = new BasicBlock(nullptr, "F");
-    auto bb_G = new BasicBlock(nullptr, "G");
-    auto bb_H = new BasicBlock(nullptr, "H");
-    auto bb_I = new BasicBlock(nullptr, "I");
+    auto bb_A = new BasicBlock(nullptr, nullptr, "A");
+    auto bb_B = new BasicBlock(nullptr, nullptr, "B");
+    auto bb_C = new BasicBlock(nullptr, nullptr, "C");
+    auto bb_D = new BasicBlock(nullptr, nullptr, "D");
+    auto bb_E = new BasicBlock(nullptr, nullptr, "E");
+    auto bb_F = new BasicBlock(nullptr, nullptr, "F");
+    auto bb_G = new BasicBlock(nullptr, nullptr, "G");
+    auto bb_H = new BasicBlock(nullptr, nullptr, "H");
+    auto bb_I = new BasicBlock(nullptr, nullptr, "I");
 
-    IRGraph ir_graph{};
+    IRGraph ir_graph{nullptr};
 
     ir_graph.AddBBToBegin(bb_A);
     ir_graph.AddBBInGraph(bb_B);
@@ -237,7 +229,7 @@ TEST(dom_tree_algo, ir_graph3) {
     ir_graph.AddEdge(bb_H, bb_I);
 
     DomTree dom_tree_algo{};
-    dom_tree_algo.RunAlgoAndBuildDomTree(ir_graph.GetRoot());
+    dom_tree_algo.Run(ir_graph.GetRoot());
 
     EXPECT_TRUE(bb_A->IsDirectlyDominated(bb_B));
     EXPECT_EQ(bb_A->GetIdom(), nullptr);
